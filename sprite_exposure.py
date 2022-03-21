@@ -39,6 +39,11 @@ class sprite_obs():
 		self.ph_lis = np.array([])
 		self.time_lis = [0]
 
+		#build photon rate counters
+		self.start_dt = dt.datetime.now()
+		self.frame_rate = 0
+		self.frame_rate_lis = []
+
 	def ttag_to_image(self, data_df):
 		im = np.zeros(self.detector_size)
 
@@ -50,6 +55,17 @@ class sprite_obs():
 			im[int(pix_lis[i][0])-1,int(pix_lis[i][1])-1] = pix_val_lis[i]
 
 		return im
+
+	def load_ttag(self, ttag_df):
+		#build time list from dt column
+		photon_ct_df = ttag_df.groupby(by='dt').count()
+		ct_lis = photon_ct_df['x'].values
+		time_lis = photon_ct_df.index.values
+
+		accum_im = self.ttag_to_image(ttag_df)
+		self.image_accum = im
+
+		self.ph_lis = ttag_df['p'].values
 
 	def update_image(self, dat_df):
 
@@ -63,6 +79,11 @@ class sprite_obs():
 
 		self.frame_count_lis.append(self.frame_count)
 		self.accum_count_lis.append(self.accum_count)
+
+		end_dt = dt.datetime.now()
+		self.frame_rate =  self.frame_count/(end_dt - self.start_dt).total_seconds()
+		self.frame_rate_lis.append(self.frame_rate)
+		self.start_dt = end_dt
 
 		self.ph_lis = np.hstack([self.ph_lis, dat_df['p'].values])
 

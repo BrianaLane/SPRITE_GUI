@@ -168,18 +168,13 @@ class MainWindow(QtWidgets.QWidget):
 
         #build control buttons
         self.fileBtn = QtWidgets.QPushButton('Select Data')
-        self.fileBtn.pressed.connect(self.select_data)
-
-        self.currdatBtn = QtWidgets.QPushButton('Current Data')
-        self.currdatBtn.pressed.connect(self.load_current_data)
+        self.fileBtn.pressed.connect(self.load_ttag_data)
 
         #build labels
         self.pv_data_label = QtWidgets.QLabel('Loaded Data: None')
-        self.exptime_label_pv = QtWidgets.QLabel('Elapsed Time: '+str(self.elapsed_time)+' Seconds')
-        self.frame_ct_label_pv = QtWidgets.QLabel('Photons per Second: '+str(self.exp_obj.frame_count) 
-                                                + '\n' + 'Median Photons per Second: '
-                                                + str(np.round(np.median(self.exp_obj.frame_count_lis), 2)))
-        self.accum_ct_label_pv = QtWidgets.QLabel('Total Photons Accumulated: '+str(self.exp_obj.accum_count))
+        self.exptime_label_pv = QtWidgets.QLabel('Elapsed Time: 0 Seconds')
+        self.frame_ct_label_pv = QtWidgets.QLabel('Photons per Second: 0' + '\n' + 'Median Photons per Second: 0')
+        self.accum_ct_label_pv = QtWidgets.QLabel('Total Photons Accumulated: 0')
 
         #build figure canvas
         self.canvas_frame_pv = MplCanvas(self)
@@ -188,13 +183,16 @@ class MainWindow(QtWidgets.QWidget):
 
         #add button widgets
         self.tab2.grid.addWidget(self.fileBtn,0,0,1,2)
-        self.tab2.grid.addWidget(self.fileBtn,1,0,1,2)
 
         #add label widgets
         self.tab2.grid.addWidget(self.pv_data_label,0,3,1,5)
+        self.tab2.grid.addWidget(self.exptime_label_pv,1,0,1,2)
+        self.tab2.grid.addWidget(self.frame_ct_label_pv,13,0,1,2)
+        self.tab2.grid.addWidget(self.accum_ct_label_pv,13,5,1,2)
 
         #add figure widgets
         self.tab2.grid.addWidget(self.canvas_frame_pv,2,0,10,14)
+
 
         #**********************#
         # build GUI and Timers #
@@ -218,15 +216,22 @@ class MainWindow(QtWidgets.QWidget):
         self.run_exposure()
         self.show()
 
-    def select_data(self):
-        filter = "CSV File (*.csv)"
+    def dateparse_df(self, dt):    
+        return pd.Timestamp(dt)
+
+    def load_ttag_data(self):
+        filter = "CSV File (.csv))"
         dlg = QtWidgets.QFileDialog.getOpenFileName(self, "CSV File", "./", filter)
-        self.selectedData = pd.read_csv(dlg[0])
+        self.selectedData = pd.read_csv(dlg[0], parse_dates=True, date_parser=dateparse_df, index_col='dt')
+
+        self.elapsed_time_pv = 0
 
         self.pv_data_label.setText('Loaded Data: '+str(dlg[0]))
-
-    def load_current_data(self):
-        return None
+        self.exptime_label_pv.setText('Elapsed Time: '+str(self.elapsed_time_pv)+' Seconds')
+        self.frame_ct_label_pv.setText('Photons per Second: '+str(self.exp_obj.frame_rate) 
+                                                + '\n' + 'Median Photons per Second: '
+                                                + str(np.round(np.median(self.exp_obj.frame_rate_lis), 2)))
+        self.accum_ct_label_pv.setText('Total Photons Accumulated: '+str(self.exp_obj.accum_count))
         
 
     def read_save_ttag(self, s):
@@ -393,9 +398,9 @@ class MainWindow(QtWidgets.QWidget):
 
                 #update labels
                 self.exptime_label.setText('Elapsed Time: '+str(np.round(self.elapsed_time, 2))+' Seconds')
-                self.frame_ct_label.setText('Photons per Second: '+str(int(self.exp_obj.frame_count)) 
+                self.frame_ct_label.setText('Photons per Second: '+str(int(self.exp_obj.frame_rate)) 
                                             + '\n' + 'Median Photons per Second: '
-                                            + str(np.round(np.median(self.exp_obj.frame_count_lis), 2)))
+                                            + str(np.round(np.median(self.exp_obj.frame_rate_lis), 2)))
                 self.accum_ct_label.setText('Total Photons Accumulated: '+str(int(self.exp_obj.accum_count)))
 
                 self.update_figures()

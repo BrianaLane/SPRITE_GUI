@@ -164,7 +164,7 @@ class sim_data():
         else:
             dat_df = self.sim_photon_df.iloc[start_ind: start_ind+photon_rate].copy()
         
-        dat_df['dt'] = start_time
+        dat_df['dt'] = pd.Timestamp(start_time)
         
         time.sleep(delay)
         end = time.time()
