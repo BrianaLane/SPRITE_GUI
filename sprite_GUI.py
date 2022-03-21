@@ -59,7 +59,7 @@ class MainWindow(QtWidgets.QWidget):
         self.overwrite = overwrite
 
         self.exp_obj = sprite_exp.sprite_obs(outname_df=self.outname_df, outname_fits=self.outname_fits,
-                                                detector_size=self.detector_size, save_ttag=True, overwrite=self.overwrite)
+                                             detector_size=self.detector_size, save_ttag=True, overwrite=self.overwrite)
         self.runExposure = False
 
         self.readout_rate = readout_rate
@@ -89,6 +89,10 @@ class MainWindow(QtWidgets.QWidget):
         self.tabs.addTab(self.tab2,"Preview Exposure")
         self.tab1.grid = QtWidgets.QGridLayout(self)
         self.tab2.grid = QtWidgets.QGridLayout(self)
+
+        #**************************#
+        # first tab on main window #
+        #**************************#
 
         #build labels
         self.exptime_label = QtWidgets.QLabel('Elapsed Time: '+str(self.elapsed_time)+' Seconds')
@@ -158,6 +162,44 @@ class MainWindow(QtWidgets.QWidget):
         #self.tab1.grid.setColumnStretch (column, stretch)
         #self.tab1.grid.setRowStretch (row, stretch)
 
+        #***************************#
+        # Second tab on main window #
+        #***************************#
+
+        #build control buttons
+        self.fileBtn = QtWidgets.QPushButton('Select Data')
+        self.fileBtn.pressed.connect(self.select_data)
+
+        self.currdatBtn = QtWidgets.QPushButton('Current Data')
+        self.currdatBtn.pressed.connect(self.load_current_data)
+
+        #build labels
+        self.pv_data_label = QtWidgets.QLabel('Loaded Data: None')
+        self.exptime_label_pv = QtWidgets.QLabel('Elapsed Time: '+str(self.elapsed_time)+' Seconds')
+        self.frame_ct_label_pv = QtWidgets.QLabel('Photons per Second: '+str(self.exp_obj.frame_count) 
+                                                + '\n' + 'Median Photons per Second: '
+                                                + str(np.round(np.median(self.exp_obj.frame_count_lis), 2)))
+        self.accum_ct_label_pv = QtWidgets.QLabel('Total Photons Accumulated: '+str(self.exp_obj.accum_count))
+
+        #build figure canvas
+        self.canvas_frame_pv = MplCanvas(self)
+        self.plot_ref_frame_pv = None
+        self.plot_ref_accum_pv = None
+
+        #add button widgets
+        self.tab2.grid.addWidget(self.fileBtn,0,0,1,2)
+        self.tab2.grid.addWidget(self.fileBtn,1,0,1,2)
+
+        #add label widgets
+        self.tab2.grid.addWidget(self.pv_data_label,0,3,1,5)
+
+        #add figure widgets
+        self.tab2.grid.addWidget(self.canvas_frame_pv,2,0,10,14)
+
+        #**********************#
+        # build GUI and Timers #
+        #**********************#
+
         # # Setup a timer to trigger the redraw by calling update_plot.
         # Create timer object
         self.timer = QtCore.QTimer(self)
@@ -175,6 +217,17 @@ class MainWindow(QtWidgets.QWidget):
 
         self.run_exposure()
         self.show()
+
+    def select_data(self):
+        filter = "CSV File (*.csv)"
+        dlg = QtWidgets.QFileDialog.getOpenFileName(self, "CSV File", "./", filter)
+        self.selectedData = pd.read_csv(dlg[0])
+
+        self.pv_data_label.setText('Loaded Data: '+str(dlg[0]))
+
+    def load_current_data(self):
+        return None
+        
 
     def read_save_ttag(self, s):
         if s == True:
@@ -285,13 +338,29 @@ class MainWindow(QtWidgets.QWidget):
         # flush the GUI events
         self.canvas_frame.flush_events() 
 
+
+    def build_figure_canvas(self, canvas):
+        ref_frame, cbar_frame, bl_frame = self.draw_image(canvas.ax1, canvas.fig, 
+                                                                self.exp_obj.image_frame, 1, 'Frame Rate Image')
+        ref_accum, cbar_accum, bl_accum = self.draw_image(canvas.ax2, self.canvas_frame.fig, 
+                                                                self.exp_obj.image_accum, 1, 'Accumulated Image')
+
+        plot_ref_frame = (ref_frame, cbar_frame, bl_frame)
+        plot_ref_accum= (ref_accum, cbar_accum, bl_accum)
+        
+        plot_ref_ct = self.draw_plot(canvas.ax4, [], [],'Accumulated'+'\n'+'Photons vs. Time')
+
+        self.draw_hist(canvas.ax3, [], 'Pulse Height'+'\n'+'Histogram')
+
+
+
     
     def run_exposure(self):
 
         # Note: we no longer need to clear the axis.
         if self.plot_ref_frame is None:
 
-            #self.build_inital_figures()
+            #build initial figures for first tab
             self.plot_ref_frame, self.cbar_frame, self.bl_frame = self.draw_image(self.canvas_frame.ax1, self.canvas_frame.fig, 
                                                                     self.exp_obj.image_frame, self.frame_bin, 'Frame Rate Image')
             self.plot_ref_accum, self.cbar_accum, self.bl_accum = self.draw_image(self.canvas_frame.ax2, self.canvas_frame.fig, 
@@ -302,13 +371,23 @@ class MainWindow(QtWidgets.QWidget):
 
             self.draw_hist(self.canvas_frame.ax3, self.exp_obj.ph_lis, 'Pulse Height'+'\n'+'Histogram')
 
+            #build initial figures for second tab
+            self.plot_ref_frame_pv, self.cbar_frame_pv, self.bl_frame_pv = self.draw_image(self.canvas_frame_pv.ax1, self.canvas_frame_pv.fig, 
+                                                                    self.exp_obj.image_frame, self.frame_bin, 'Frame Rate Image')
+            self.plot_ref_accum_pv, self.cbar_accum_pv, self.bl_accum_pv = self.draw_image(self.canvas_frame_pv.ax2, self.canvas_frame_pv.fig, 
+                                                                    self.exp_obj.image_accum, self.accum_bin, 'Accumulated Image')
+            
+            self.plot_ref_ct_pv = self.draw_plot(self.canvas_frame_pv.ax4, [], [], 'Accumulated'+'\n'+'Photons vs. Time')
+
+            self.draw_hist(self.canvas_frame_pv.ax3, [], 'Pulse Height'+'\n'+'Histogram')
+
         else:
 
             if self.runExposure:
                 #count the elapsed time
                 self.elapsed_time += self.readout_rate
 
-                dat_df = self.exp_obj.aquire_sim_data(sim_df_name='sim_ttag_gauss.csv', photon_rate=10000)
+                dat_df = self.exp_obj.aquire_sim_data(sim_df_name='example_simulated_gauss_ttag.csv', photon_rate=10000)
 
                 self.time_lis.append(self.elapsed_time)
 
@@ -377,7 +456,7 @@ if __name__ == "__main__":
     outname_df = 'ttag_exp_test.csv'
     outname_fits = 'ttag_exp_test.fits'
 
-    w = MainWindow(outname_df=outname_df, outname_fits=outname_fits, readout_rate=1, detector_size=(2048,2048), overwrite=True)
+    w = MainWindow(outname_df=outname_df, outname_fits=outname_fits, readout_rate=1, detector_size=(2048,2048), overwrite=False)
     w.setWindowTitle("SPRITE GUI")
     w.setGeometry(0, 0, 1500, 800)
 
