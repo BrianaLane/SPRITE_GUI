@@ -48,6 +48,7 @@
 
 # SPRITE GUI Features In Progress
 
+- I plan to add instructions for running the **simulate_sprite_data.py** script to build simulated data sets as well so the user isn't stuck with the detfault example csv 
 
 ## Real Time Exposure Tab:
 
