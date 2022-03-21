@@ -1,4 +1,3 @@
-=================================================
 # SPRITE_GUI 
 
 - A python dashboard for real time monitoring of the SPRITE cubesat detector readout
@@ -10,7 +9,7 @@
 	4. **stylesheet.qss**: This file contains the stylesheet information for the pyQT package to read from to set the GUI style parameters for the various pyQT widgets used (ie. colors, fonts, etc..)
 	5. **example_simulated_gauss_ttag.csv**: This is an example of an output set of simulated SPRITE data created with simulate_sprite_data.py. It contains 34K photons events from a random 2D guassian over the detector area. 
 
-=================================================
+
 # Running the SPRITE GUI
 
 - In a terminal window run commands:
@@ -18,7 +17,7 @@
 		>>> cd your_path/SPRITE_GUI 
 		>>> python sprite_GUI.py
 
-=================================================
+
 # Description of SPRITE GUI
 
 - SPRITE GUI is currently set up to run with a set of simulated ttag data (example_simulated_guass_ttag.csv)
@@ -46,7 +45,7 @@
 1. All displayed widgets in this tab are in the Real_Time_Exposure Tab, however, this tab is for loading in the ttag csv file from a previous exposure. This tab provides a tool for displaying previous exposure data as a function of time. 
 2. In place of a *Start/Stop/Reset* button there is a *Select Data* button that allows you to choose a '.csv' file containing ttag data from a previous exposure and load it into this tab
 
-=================================================
+
 # SPRITE GUI Features In Progress
 
 ------------------------------
