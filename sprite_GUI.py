@@ -160,10 +160,6 @@ class MainWindow(QtWidgets.QWidget):
         self.detector_size = detector_size
         self.overwrite = overwrite
 
-        self.exp_obj = sprite_exp.sprite_obs(outname_df=self.outname_df, outname_fits=self.outname_fits,
-                                             detector_size=self.detector_size, save_ttag=True, overwrite=self.overwrite)
-        self.runExposure = False
-
         self.readout_rate = readout_rate
         self.detector_size = detector_size
 
@@ -172,11 +168,20 @@ class MainWindow(QtWidgets.QWidget):
             ttag_df = pd.DataFrame(columns=['x', 'y', 'p', 'dt'])
             ttag_df.to_csv(self.outname_df, index=False)
 
-        self.elapsed_time = 0.0
-        self.time_lis = [0]
+        self.exp_obj = sprite_exp.sprite_obs(outname_df=self.outname_df, outname_fits=self.outname_fits,
+                                             detector_size=self.detector_size, save_ttag=True, overwrite=self.overwrite)
+        self.exp_obj.frame_rate = self.readout_rate
 
-        self.frame_bin = 1
-        self.accum_bin = 1
+        self.initialize_figure = False
+        self.runExposure = False
+
+        self.elapsed_time = 0.0
+        self.elap_time_lis = [0]
+
+        self.frame_bin_t1 = 1
+        self.accum_bin_t1 = 1
+        self.frame_bin_t2 = 1
+        self.accum_bin_t2 = 1
         self.bin_lis = [1, 8, 16, 32, 64, 128]
 
         self.grid = QtWidgets.QGridLayout(self)
@@ -219,21 +224,21 @@ class MainWindow(QtWidgets.QWidget):
         self.restBtn.pressed.connect(self.resetWindow)
 
         #build image binning scale bars
-        self.frame_slide = QtWidgets.QSlider(QtCore.Qt.Horizontal)
-        self.frame_slide.setMinimum(0)
-        self.frame_slide.setMaximum(len(self.bin_lis)-1)
-        self.frame_slide.setValue(0)
-        self.frame_slide.setTickInterval(1)
-        self.frame_slide.setTickPosition(QtWidgets.QSlider.TicksBelow)
-        self.frame_slide.sliderMoved.connect(self.change_frame_bin)
+        self.frame_slide_t1 = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        self.frame_slide_t1.setMinimum(0)
+        self.frame_slide_t1.setMaximum(len(self.bin_lis)-1)
+        self.frame_slide_t1.setValue(0)
+        self.frame_slide_t1.setTickInterval(1)
+        self.frame_slide_t1.setTickPosition(QtWidgets.QSlider.TicksBelow)
+        self.frame_slide_t1.sliderMoved.connect(self.change_frame_bin_t1)
 
-        self.accum_slide = QtWidgets.QSlider(QtCore.Qt.Horizontal)
-        self.accum_slide.setMinimum(0)
-        self.accum_slide.setMaximum(len(self.bin_lis)-1)
-        self.accum_slide.setValue(0)
-        self.accum_slide.setTickInterval(1)
-        self.accum_slide.setTickPosition(QtWidgets.QSlider.TicksBelow)
-        self.accum_slide.sliderMoved.connect(self.change_accum_bin)
+        self.accum_slide_t1 = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        self.accum_slide_t1.setMinimum(0)
+        self.accum_slide_t1.setMaximum(len(self.bin_lis)-1)
+        self.accum_slide_t1.setValue(0)
+        self.accum_slide_t1.setTickInterval(1)
+        self.accum_slide_t1.setTickPosition(QtWidgets.QSlider.TicksBelow)
+        self.accum_slide_t1.sliderMoved.connect(self.change_accum_bin_t1)
 
         #Figure Grid
         self.canvas_frame = MplCanvas(self)
@@ -252,8 +257,8 @@ class MainWindow(QtWidgets.QWidget):
         self.tab1.grid.addWidget(self.canvas_frame,2,0,10,14)
 
         #add scale bar bin image widgets
-        self.tab1.grid.addWidget(self.frame_slide,10,1,1,2)
-        self.tab1.grid.addWidget(self.accum_slide,10,6,1,2)
+        self.tab1.grid.addWidget(self.frame_slide_t1,10,1,1,2)
+        self.tab1.grid.addWidget(self.accum_slide_t1,10,6,1,2)
 
         #add label widgets
         self.tab1.grid.addWidget(self.exptime_label,0,8,1,2)
@@ -285,18 +290,39 @@ class MainWindow(QtWidgets.QWidget):
         self.plot_ref_frame_pv = None
         self.plot_ref_accum_pv = None
 
+        #build image binning scale bars
+        self.frame_slide_t2 = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        self.frame_slide_t2.setMinimum(0)
+        self.frame_slide_t2.setMaximum(len(self.bin_lis)-1)
+        self.frame_slide_t2.setValue(0)
+        self.frame_slide_t2.setTickInterval(1)
+        self.frame_slide_t2.setTickPosition(QtWidgets.QSlider.TicksBelow)
+        self.frame_slide_t2.sliderMoved.connect(self.change_frame_bin_t2)
+
+        self.accum_slide_t2 = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        self.accum_slide_t2.setMinimum(0)
+        self.accum_slide_t2.setMaximum(len(self.bin_lis)-1)
+        self.accum_slide_t2.setValue(0)
+        self.accum_slide_t2.setTickInterval(1)
+        self.accum_slide_t2.setTickPosition(QtWidgets.QSlider.TicksBelow)
+        self.accum_slide_t2.sliderMoved.connect(self.change_accum_bin_t2)
+
         #add button widgets
         self.tab2.grid.addWidget(self.loadexpBtn,0,0,1,2)
         self.tab2.grid.addWidget(self.fileBtn,1,0,1,2)
 
         #add label widgets
         self.tab2.grid.addWidget(self.pv_data_label,0,3,1,5)
-        self.tab2.grid.addWidget(self.exptime_label_pv,3,0,1,2)
+        self.tab2.grid.addWidget(self.exptime_label_pv,1,3,1,2)
         self.tab2.grid.addWidget(self.frame_ct_label_pv,13,0,1,2)
         self.tab2.grid.addWidget(self.accum_ct_label_pv,13,5,1,2)
 
         #add figure widgets
         self.tab2.grid.addWidget(self.canvas_frame_pv,2,0,10,14)
+
+        #add scale bar bin image widgets
+        self.tab2.grid.addWidget(self.frame_slide_t2,10,1,1,2)
+        self.tab2.grid.addWidget(self.accum_slide_t2,10,6,1,2)
 
         #**********************#
         # build GUI and Timers #
@@ -333,64 +359,38 @@ class MainWindow(QtWidgets.QWidget):
         curr_dt_str = curr_dt.strftime("%d%m%Y_%H%M%S")
         self.exp_obj.save_accum(exp_tag=curr_dt_str)
 
-    def change_frame_bin(self, i):
-        self.frame_bin = self.bin_lis[i]
+    def change_frame_bin_t1(self, i):
+        self.frame_bin_t1 = self.bin_lis[i]
 
-    def change_accum_bin(self, i):
-        self.accum_bin = self.bin_lis[i]
+    def change_accum_bin_t1(self, i):
+        self.accum_bin_t1 = self.bin_lis[i]
 
-    # def update_figures(self, canvas):
+    def change_frame_bin_t2(self, i):
+        self.frame_bin_t2 = self.bin_lis[i]
 
-    #     bin_image_frame = canvas.bin_image(self.exp_obj.image_frame, self.frame_bin)
-    #     bin_image_accum = canvas.bin_image(self.exp_obj.image_accum, self.accum_bin)
-
-    #     if np.max(self.exp_obj.image_accum) == 0:
-    #         max_frame = 10
-    #         max_accum = 10
-    #     else:
-    #         max_frame = np.max(bin_image_frame)
-    #         max_accum = np.max(bin_image_accum)
-
-    #     canvas.frame_im_ref.set_array(bin_image_frame)
-    #     canvas.frame_cb_ref.mappable.set_clim(vmin=0, vmax=max_frame)
-    #     canvas.frame_bl_ref.set_text('Binned by: '+str(self.frame_bin))
-
-    #     canvas.accum_im_ref.set_array(bin_image_accum)
-    #     canvas.accum_cb_ref.mappable.set_clim(vmin=0, vmax=max_accum)
-    #     canvas.accum_bl_ref.set_text('Binned by: '+str(self.accum_bin))
-
-    #     canvas.ax3.cla()
-    #     canvas.draw_hist(self.exp_obj.ph_lis, 'Pulse Height'+'\n'+'Histogram')
-
-    #     canvas.plot_ref.set_data(self.time_lis, self.exp_obj.accum_count_lis)
-    #     canvas.ax4.relim()
-    #     canvas.ax4.autoscale_view()
-
-    #     # Trigger the canvas to update and redraw.
-    #     canvas.frame_cb_ref.draw_all() 
-    #     canvas.accum_cb_ref.draw_all() 
-    #     canvas.draw()
-
-    #     # flush the GUI events
-    #     canvas.flush_events() 
+    def change_accum_bin_t2(self, i):
+        self.accum_bin_t2 = self.bin_lis[i]
     
     def run_exposure(self):
 
         # Note: we no longer need to clear the axis.
-        if self.canvas_frame.frame_im_ref is None:
+        #if self.canvas_frame.frame_im_ref is None:
+        if not self.initialize_figure:
 
             print('DRAW FIGURES')
 
-            self.canvas_frame.draw_frame_image(self.exp_obj.image_frame, self.frame_bin)
-            self.canvas_frame.draw_accum_image(self.exp_obj.image_accum, self.accum_bin)
-            self.canvas_frame.draw_plot(self.time_lis, self.exp_obj.accum_count_lis, 'Accumulated'+'\n'+'Photons vs. Time')
+            self.canvas_frame.draw_frame_image(self.exp_obj.image_frame, self.frame_bin_t1)
+            self.canvas_frame.draw_accum_image(self.exp_obj.image_accum, self.accum_bin_t1)
+            self.canvas_frame.draw_plot(self.exp_obj.time_lis, self.exp_obj.accum_count_lis, 'Accumulated'+'\n'+'Photons vs. Time')
             self.canvas_frame.draw_hist(self.exp_obj.ph_lis, 'Pulse Height'+'\n'+'Histogram')
 
             #build initial figures for second tab
-            self.canvas_frame_pv.draw_frame_image(self.exp_obj.image_frame, self.frame_bin)
-            self.canvas_frame_pv.draw_accum_image(self.exp_obj.image_accum, self.accum_bin)
+            self.canvas_frame_pv.draw_frame_image(self.exp_obj.image_frame, self.frame_bin_t2)
+            self.canvas_frame_pv.draw_accum_image(self.exp_obj.image_accum, self.accum_bin_t2)
             self.canvas_frame_pv.draw_plot([], [], 'Accumulated'+'\n'+'Photons vs. Time')
             self.canvas_frame_pv.draw_hist([], 'Pulse Height'+'\n'+'Histogram')
+
+            self.initialize_figure=True
 
         else:
 
@@ -400,17 +400,17 @@ class MainWindow(QtWidgets.QWidget):
 
                 dat_df = self.exp_obj.aquire_sim_data(sim_df_name='example_simulated_gauss_ttag.csv', photon_rate=10000)
 
-                self.time_lis.append(self.elapsed_time)
+                self.elap_time_lis.append(self.elapsed_time)
 
                 #update labels
-                self.exptime_label.setText('Elapsed Time: '+str(np.round(self.elapsed_time, 2))+' Seconds')
-                self.frame_ct_label.setText('Photons per Second: '+str(int(self.exp_obj.frame_rate)) 
+                self.exptime_label.setText('Elapsed Time: '+str(np.round(self.exp_obj.time_lis[-1], 2))+' Seconds')
+                self.frame_ct_label.setText('Photons per Second: '+str(int(self.exp_obj.frame_phot_rate)) 
                                             + '\n' + 'Median Photons per Second: '
-                                            + str(np.round(np.median(self.exp_obj.frame_rate_lis), 2)))
+                                            + str(np.round(np.median(self.exp_obj.frame_phot_rate_lis), 2)))
                 self.accum_ct_label.setText('Total Photons Accumulated: '+str(int(self.exp_obj.accum_count)))
 
                 self.canvas_frame.update_figures(self.exp_obj.image_frame, self.exp_obj.image_accum, 
-                                                 self.frame_bin, self.accum_bin, self.exp_obj.ph_lis, 
+                                                 self.frame_bin_t1, self.accum_bin_t1, self.exp_obj.ph_lis, 
                                                  self.exp_obj.time_lis, self.exp_obj.accum_count_lis)
 
     def startExposure(self):
@@ -436,16 +436,20 @@ class MainWindow(QtWidgets.QWidget):
         self.exp_obj.frame_count_lis = [0]
         self.exp_obj.accum_count_lis = [0]
         self.exp_obj.ph_lis = np.array([])
-        self.time_lis = [0]
+        self.exp_obj.elapsed_time = 0
+        self.exp_obj.time_lis = [0]
+        self.exp_obj.num_dat_updates = 0
 
-        self.frame_bin = 1
-        self.accum_bin = 1
-        self.frame_slide.setValue(0)
-        self.accum_slide.setValue(0)
+        self.elap_time_lis = [0]
+
+        self.frame_bin_t1 = 1
+        self.accum_bin_t1 = 1
+        self.frame_slide_t1.setValue(0)
+        self.accum_slide_t1.setValue(0)
 
         #update figures
         self.canvas_frame.update_figures(self.exp_obj.image_frame, self.exp_obj.image_accum, 
-                                         self.frame_bin, self.accum_bin, self.exp_obj.ph_lis, 
+                                         self.frame_bin_t1, self.accum_bin_t1, self.exp_obj.ph_lis, 
                                          self.exp_obj.time_lis, self.exp_obj.accum_count_lis)
 
         # Set the initial values for the stop watch
@@ -475,10 +479,15 @@ class MainWindow(QtWidgets.QWidget):
 
         self.pv_data_label.setText('Loaded Data: '+str(self.pv_obj.outname_df))
         self.exptime_label_pv.setText('Elapsed Time: '+str(np.round(self.pv_obj.time_lis[-1], 1))+' Seconds')
-        self.frame_ct_label_pv.setText('Photons per Second: '+str(np.round(self.pv_obj.frame_rate,1)) 
+        self.frame_ct_label_pv.setText('Photons per Second: '+str(np.round(self.pv_obj.frame_phot_rate,1)) 
                                                 + '\n' + 'Median Photons per Second: '
-                                                + str(np.round(np.median(self.pv_obj.frame_rate_lis), 2)))
+                                                + str(np.round(np.median(self.pv_obj.frame_phot_rate_lis), 2)))
         self.accum_ct_label_pv.setText('Total Photons Accumulated: '+str(int(self.pv_obj.accum_count)))
+
+
+        self.canvas_frame_pv.update_figures(self.pv_obj.image_frame, self.pv_obj.image_accum, 
+                                            self.frame_bin_t2, self.accum_bin_t2, self.pv_obj.ph_lis, 
+                                            self.pv_obj.time_lis, self.pv_obj.accum_count_lis)
 
     def load_current_data(self):
         self.pv_data = pd.read_csv(self.outname_df, parse_dates=True, date_parser=self.dateparse_df, index_col='dt')
@@ -504,7 +513,7 @@ if __name__ == "__main__":
     outname_df = 'ttag_exp_test.csv'
     outname_fits = 'ttag_exp_test.fits'
 
-    w = MainWindow(outname_df=outname_df, outname_fits=outname_fits, readout_rate=1, detector_size=(2048,2048), overwrite=False)
+    w = MainWindow(outname_df=outname_df, outname_fits=outname_fits, readout_rate=1, detector_size=(2048,2048), overwrite=True)
     w.setWindowTitle("SPRITE GUI")
     w.setGeometry(0, 0, 1500, 800)
 
