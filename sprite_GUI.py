@@ -167,7 +167,9 @@ class MainWindow(QtWidgets.QWidget):
         #***************************#
 
         #build control buttons
-        self.fileBtn = QtWidgets.QPushButton('Select Data')
+        self.loadexpBtn = QtWidgets.QPushButton('Load Current Exposure')
+        self.fileBtn = QtWidgets.QPushButton('Load TTAG Data')
+        self.loadexpBtn.pressed.connect(self.load_current_data)
         self.fileBtn.pressed.connect(self.load_ttag_data)
 
         #build labels
@@ -182,11 +184,12 @@ class MainWindow(QtWidgets.QWidget):
         self.plot_ref_accum_pv = None
 
         #add button widgets
-        self.tab2.grid.addWidget(self.fileBtn,0,0,1,2)
+        self.tab2.grid.addWidget(self.loadexpBtn,0,0,1,2)
+        self.tab2.grid.addWidget(self.fileBtn,1,0,1,2)
 
         #add label widgets
         self.tab2.grid.addWidget(self.pv_data_label,0,3,1,5)
-        self.tab2.grid.addWidget(self.exptime_label_pv,1,0,1,2)
+        self.tab2.grid.addWidget(self.exptime_label_pv,3,0,1,2)
         self.tab2.grid.addWidget(self.frame_ct_label_pv,13,0,1,2)
         self.tab2.grid.addWidget(self.accum_ct_label_pv,13,5,1,2)
 
@@ -216,23 +219,7 @@ class MainWindow(QtWidgets.QWidget):
         self.run_exposure()
         self.show()
 
-    def dateparse_df(self, dt):    
-        return pd.Timestamp(dt)
-
-    def load_ttag_data(self):
-        filter = "CSV File (.csv))"
-        dlg = QtWidgets.QFileDialog.getOpenFileName(self, "CSV File", "./", filter)
-        self.selectedData = pd.read_csv(dlg[0], parse_dates=True, date_parser=dateparse_df, index_col='dt')
-
-        self.elapsed_time_pv = 0
-
-        self.pv_data_label.setText('Loaded Data: '+str(dlg[0]))
-        self.exptime_label_pv.setText('Elapsed Time: '+str(self.elapsed_time_pv)+' Seconds')
-        self.frame_ct_label_pv.setText('Photons per Second: '+str(self.exp_obj.frame_rate) 
-                                                + '\n' + 'Median Photons per Second: '
-                                                + str(np.round(np.median(self.exp_obj.frame_rate_lis), 2)))
-        self.accum_ct_label_pv.setText('Total Photons Accumulated: '+str(self.exp_obj.accum_count))
-        
+    #TAB 1 functions
 
     def read_save_ttag(self, s):
         if s == True:
@@ -357,8 +344,6 @@ class MainWindow(QtWidgets.QWidget):
 
         self.draw_hist(canvas.ax3, [], 'Pulse Height'+'\n'+'Histogram')
 
-
-
     
     def run_exposure(self):
 
@@ -454,6 +439,39 @@ class MainWindow(QtWidgets.QWidget):
         # flush the GUI events
         self.canvas_frame.flush_events() 
 
+    #TAB 2 Functions
+
+    def dateparse_df(self, dt):    
+        return pd.Timestamp(dt)
+
+    def update_ttag_preview(self, pv_df):
+
+        self.pv_obj.load_ttag(pv_df)
+
+        self.pv_data_label.setText('Loaded Data: '+str(self.pv_obj.outname_df))
+        self.exptime_label_pv.setText('Elapsed Time: '+str(self.pv_obj.time_lis[-1])+' Seconds')
+        self.frame_ct_label_pv.setText('Photons per Second: '+str(self.pv_obj.frame_rate) 
+                                                + '\n' + 'Median Photons per Second: '
+                                                + str(np.round(np.median(self.pv_obj.frame_rate_lis), 2)))
+        self.accum_ct_label_pv.setText('Total Photons Accumulated: '+str(self.pv_obj.accum_count))
+
+    def load_current_data(self):
+        self.pv_data = pd.read_csv(self.outname_df, parse_dates=True, date_parser=self.dateparse_df, index_col='dt')
+
+        self.pv_obj = sprite_exp.sprite_obs(outname_df=self.outname_df, outname_fits=self.outname_fits,
+                                             detector_size=self.detector_size, save_ttag=False, overwrite=False)
+        self.update_ttag_preview(self.pv_data)
+
+    def load_ttag_data(self):
+        dlg = QtWidgets.QFileDialog.getOpenFileName(self, "CSV File", "./", "CSV files (*.csv)")
+
+        self.pv_data = pd.read_csv(dlg[0], parse_dates=True, date_parser=self.dateparse_df, index_col='dt')
+
+        self.pv_obj = sprite_exp.sprite_obs(outname_df=dlg[0], outname_fits=self.outname_fits,
+                                             detector_size=self.detector_size, save_ttag=False, overwrite=False)
+        self.update_ttag_preview(self.pv_data)
+
+#Build and run GUI when script is run
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     app.setStyleSheet(open("stylesheet.qss", "r").read())

@@ -59,11 +59,26 @@ class sprite_obs():
 	def load_ttag(self, ttag_df):
 		#build time list from dt column
 		photon_ct_df = ttag_df.groupby(by='dt').count()
-		ct_lis = photon_ct_df['x'].values
-		time_lis = photon_ct_df.index.values
+		self.frame_count_lis = photon_ct_df['x'].values
+		self.accum_count_lis = photon_ct_df['x'].expanding(1).sum().values
 
-		accum_im = self.ttag_to_image(ttag_df)
-		self.image_accum = im
+		self.frame_count = self.frame_count_lis[-1]
+		self.accum_count = self.accum_count_lis[-1]
+
+		datetime_lis = photon_ct_df.index.values
+		timedelt_lis = [(i-datetime_lis[0])/np.timedelta64(1,'s') for i in datetime_lis]
+		#this method of calculaing the time results in the first value being zero
+		#need to update the values by the time of the first readout 
+		#estimate time of first readout by taking median of difference between times and adding to time values
+		self.frame_rate = np.median([timedelt_lis[i+1]-timedelt_lis[i] for i in range(len(timedelt_lis)-1)])
+		self.time_lis = np.add(timedelt_lis, self.frame_rate)
+
+		self.frame_rate_lis = np.divide(self.frame_count, self.time_lis)
+
+		self.image_accum = self.ttag_to_image(ttag_df)
+		#find only photons from last time frame
+		frame_ttag_df = ttag_df.loc[datetime_lis[-1]]
+		self.image_accum = self.ttag_to_image(frame_ttag_df)
 
 		self.ph_lis = ttag_df['p'].values
 
