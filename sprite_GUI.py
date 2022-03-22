@@ -48,6 +48,73 @@ class MplCanvas(FigureCanvas):
         self.fig.patch.set_facecolor('#323232')
         super(MplCanvas, self).__init__(self.fig)
 
+        self.plot_ref = None
+
+        self.frame_im_ref = None
+        self.frame_cb_ref = None
+        self.frame_bl_ref = None
+
+        self.accum_im_ref = None
+        self.accum_cb_ref = None
+        self.accum_bl_ref = None
+
+    def bin_image(self, image, bin_size):
+        if bin_size == 1:
+            return image
+
+        else:
+            num_bins = int(np.shape(image)[0] / bin_size)
+            shape = (num_bins, image.shape[0] // num_bins,
+                     num_bins, image.shape[1] // num_bins)
+            return image.reshape(shape).sum(axis=(-1,1))
+
+    def draw_image(self, ax, im, bin_size, title):
+
+        bin_im = self.bin_image(im, bin_size)
+
+        plot_refs_f = ax.imshow(bin_im, origin='lower', cmap='gist_earth', vmin=0, vmax=10)
+        
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes('right', size='5%', pad=0.03)
+        cb = self.fig.colorbar(plot_refs_f, cax=cax, orientation='vertical')
+        cb.ax.tick_params(labelsize=4, color='white')
+        for l in cb.ax.yaxis.get_ticklabels():
+            l.set_color("white")
+
+        ax.set_title(title, fontsize=9, color='#ececec')
+        bin_label = ax.text(-0.2, -0.5, 'Binned by: '+str(bin_size), fontsize=6, color='#ececec')
+        ax.xaxis.set_ticklabels([])
+        ax.yaxis.set_ticklabels([])
+        ax.xaxis.set_ticks([])
+        ax.yaxis.set_ticks([])
+        for s in ax.spines.values():
+            s.set_edgecolor('#4f4f4f')
+
+        return plot_refs_f, cb, bin_label
+
+    def draw_frame_image(self, im, bin_size):
+        frame_ref_lis = self.draw_image(self.ax1, im, bin_size, 'Frame Rate Image')
+        self.frame_im_ref, self.frame_cb_ref, self.frame_bl_ref = frame_ref_lis
+
+    def draw_accum_image(self, im, bin_size):
+        accum_ref_lis = self.draw_image(self.ax2, im, bin_size, 'Accumulated Image')
+        self.accum_im_ref, self.accum_cb_ref, self.accum_bl_ref = accum_ref_lis
+
+    def draw_hist(self, dat, title):
+        self.ax3.hist(dat, color='lightblue')
+        self.ax3.set_title(title, fontsize=6, pad=0.5, color='#ececec')
+        self.ax3.tick_params(axis='both', which='major', labelsize=3.5, color='#9fd3c7')
+        self.ax3.tick_params(axis='x', colors="#9fd3c7")
+        self.ax3.tick_params(axis='y', colors="#9fd3c7")
+
+    def draw_plot(self, xdata, ydata, title):
+        plot_ref_all = self.ax4.plot(xdata, ydata, color='lightblue', lw=2)
+        self.plot_ref = plot_ref_all[0]
+        self.ax4 .set_title(title, fontsize=6, pad=0.5, color='#ececec')
+        self.ax4 .tick_params(axis='both', which='major', labelsize=3.5, color='#9fd3c7')
+        self.ax4 .tick_params(axis='x', colors="#9fd3c7")
+        self.ax4 .tick_params(axis='y', colors="#9fd3c7")
+
 class MainWindow(QtWidgets.QWidget):
 
     def __init__(self, readout_rate, outname_df, outname_fits, detector_size=(2048,2048), overwrite=True):
@@ -232,68 +299,16 @@ class MainWindow(QtWidgets.QWidget):
         curr_dt_str = curr_dt.strftime("%d%m%Y_%H%M%S")
         self.exp_obj.save_accum(exp_tag=curr_dt_str)
 
-    def bin_image(self, image, bin_size):
-        if bin_size == 1:
-            return image
-
-        else:
-            num_bins = int(np.shape(image)[0]/bin_size)
-            shape = (num_bins, image.shape[0] // num_bins,
-                     num_bins, image.shape[1] // num_bins)
-            return image.reshape(shape).sum(axis=(-1,1))
-
-
     def change_frame_bin(self, i):
         self.frame_bin = self.bin_lis[i]
 
     def change_accum_bin(self, i):
         self.accum_bin = self.bin_lis[i]
 
-    def draw_image(self, ax, fig, im, bin_size, title):
-
-        bin_im = self.bin_image(im, bin_size)
-
-        plot_refs_f = ax.imshow(bin_im, origin='lower', cmap='gist_earth', vmin=0, vmax=10)
-        
-        divider = make_axes_locatable(ax)
-        cax = divider.append_axes('right', size='5%', pad=0.03)
-        cb = fig.colorbar(plot_refs_f, cax=cax, orientation='vertical')
-        cb.ax.tick_params(labelsize=4, color='white')
-        for l in cb.ax.yaxis.get_ticklabels():
-            l.set_color("white")
-
-        ax.set_title(title, fontsize=9, color='#ececec')
-        bin_label = ax.text(-0.2, -0.5, 'Binned by: '+str(bin_size), fontsize=6, color='#ececec')
-        ax.xaxis.set_ticklabels([])
-        ax.yaxis.set_ticklabels([])
-        ax.xaxis.set_ticks([])
-        ax.yaxis.set_ticks([])
-        for s in ax.spines.values():
-            s.set_edgecolor('#4f4f4f')
-        return plot_refs_f, cb, bin_label
-
-    def draw_hist(self, ax, dat, title):
-
-        ax.hist(dat, color='lightblue')
-        ax.set_title(title, fontsize=6, pad=0.5, color='#ececec')
-        ax.tick_params(axis='both', which='major', labelsize=3.5, color='#9fd3c7')
-        ax.tick_params(axis='x', colors="#9fd3c7")
-        ax.tick_params(axis='y', colors="#9fd3c7")
-
-    def draw_plot(self, ax, xdata, ydata, title):
-
-        plot_ref_p = self.canvas_frame.ax4.plot(xdata, ydata, color='lightblue', lw=2)
-        ax.set_title(title, fontsize=6, pad=0.5, color='#ececec')
-        ax.tick_params(axis='both', which='major', labelsize=3.5, color='#9fd3c7')
-        ax.tick_params(axis='x', colors="#9fd3c7")
-        ax.tick_params(axis='y', colors="#9fd3c7")
-        return plot_ref_p[0]
-
-
     def update_figures(self):
 
-        bin_image_frame = self.bin_image(self.exp_obj.image_frame, self.frame_bin)
-        bin_image_accum = self.bin_image(self.exp_obj.image_accum, self.accum_bin)
+        bin_image_frame = self.canvas_frame.bin_image(self.exp_obj.image_frame, self.frame_bin)
+        bin_image_accum = self.canvas_frame.bin_image(self.exp_obj.image_accum, self.accum_bin)
 
         if np.max(self.exp_obj.image_accum) == 0:
             max_frame = 10
@@ -302,74 +317,46 @@ class MainWindow(QtWidgets.QWidget):
             max_frame = np.max(bin_image_frame)
             max_accum = np.max(bin_image_accum)
 
-        # We have a reference, we can use it to update the data for that line.
-        self.plot_ref_frame.set_array(bin_image_frame)
-        self.cbar_frame.mappable.set_clim(vmin=0, vmax=max_frame)
-        self.bl_frame.set_text('Binned by: '+str(self.frame_bin))
-        #cbar_frame_ticks = np.linspace(0., np.max(self.image_frame), num=5, endpoint=True)
-        #self.cbar_frame.set_ticks(cbar_frame_ticks)
-    
-        self.plot_ref_accum.set_array(bin_image_accum)
-        self.cbar_accum.mappable.set_clim(vmin=0, vmax=max_accum)
-        self.bl_accum.set_text('Binned by: '+str(self.accum_bin))
-        #cbar_accum_ticks = np.linspace(0., np.max(self.exp_obj.image_accum), num=5, endpoint=True)
-        #self.cbar_accum.set_ticks(cbar_accum_ticks)
+        self.canvas_frame.frame_im_ref.set_array(bin_image_frame)
+        self.canvas_frame.frame_cb_ref.mappable.set_clim(vmin=0, vmax=max_frame)
+        self.canvas_frame.frame_bl_ref.set_text('Binned by: '+str(self.frame_bin))
+
+        self.canvas_frame.accum_im_ref.set_array(bin_image_accum)
+        self.canvas_frame.accum_cb_ref.mappable.set_clim(vmin=0, vmax=max_accum)
+        self.canvas_frame.accum_bl_ref.set_text('Binned by: '+str(self.accum_bin))
 
         self.canvas_frame.ax3.cla()
-        self.draw_hist(self.canvas_frame.ax3, self.exp_obj.ph_lis, 'Pulse Height'+'\n'+'Histogram')
+        self.canvas_frame.draw_hist(self.exp_obj.ph_lis, 'Pulse Height'+'\n'+'Histogram')
 
-        self.plot_ref_ct.set_data(self.time_lis, self.exp_obj.accum_count_lis)
+        self.canvas_frame.plot_ref.set_data(self.time_lis, self.exp_obj.accum_count_lis)
         self.canvas_frame.ax4.relim()
         self.canvas_frame.ax4.autoscale_view()
 
         # Trigger the canvas to update and redraw.
-        self.cbar_frame.draw_all() 
-        self.cbar_accum.draw_all() 
+        self.canvas_frame.frame_cb_ref.draw_all() 
+        self.canvas_frame.accum_cb_ref.draw_all() 
         self.canvas_frame.draw()
 
         # flush the GUI events
         self.canvas_frame.flush_events() 
-
-
-    def build_figure_canvas(self, canvas):
-        ref_frame, cbar_frame, bl_frame = self.draw_image(canvas.ax1, canvas.fig, 
-                                                                self.exp_obj.image_frame, 1, 'Frame Rate Image')
-        ref_accum, cbar_accum, bl_accum = self.draw_image(canvas.ax2, self.canvas_frame.fig, 
-                                                                self.exp_obj.image_accum, 1, 'Accumulated Image')
-
-        plot_ref_frame = (ref_frame, cbar_frame, bl_frame)
-        plot_ref_accum= (ref_accum, cbar_accum, bl_accum)
-        
-        plot_ref_ct = self.draw_plot(canvas.ax4, [], [],'Accumulated'+'\n'+'Photons vs. Time')
-
-        self.draw_hist(canvas.ax3, [], 'Pulse Height'+'\n'+'Histogram')
-
     
     def run_exposure(self):
 
         # Note: we no longer need to clear the axis.
-        if self.plot_ref_frame is None:
+        if self.canvas_frame.frame_im_ref is None:
 
-            #build initial figures for first tab
-            self.plot_ref_frame, self.cbar_frame, self.bl_frame = self.draw_image(self.canvas_frame.ax1, self.canvas_frame.fig, 
-                                                                    self.exp_obj.image_frame, self.frame_bin, 'Frame Rate Image')
-            self.plot_ref_accum, self.cbar_accum, self.bl_accum = self.draw_image(self.canvas_frame.ax2, self.canvas_frame.fig, 
-                                                                    self.exp_obj.image_accum, self.accum_bin, 'Accumulated Image')
-            
-            self.plot_ref_ct = self.draw_plot(self.canvas_frame.ax4, self.time_lis, self.exp_obj.accum_count_lis,
-                            'Accumulated'+'\n'+'Photons vs. Time')
+            print('DRAW FIGURES')
 
-            self.draw_hist(self.canvas_frame.ax3, self.exp_obj.ph_lis, 'Pulse Height'+'\n'+'Histogram')
+            self.canvas_frame.draw_frame_image(self.exp_obj.image_frame, self.frame_bin)
+            self.canvas_frame.draw_accum_image(self.exp_obj.image_accum, self.accum_bin)
+            self.canvas_frame.draw_plot(self.time_lis, self.exp_obj.accum_count_lis, 'Accumulated'+'\n'+'Photons vs. Time')
+            self.canvas_frame.draw_hist(self.exp_obj.ph_lis, 'Pulse Height'+'\n'+'Histogram')
 
             #build initial figures for second tab
-            self.plot_ref_frame_pv, self.cbar_frame_pv, self.bl_frame_pv = self.draw_image(self.canvas_frame_pv.ax1, self.canvas_frame_pv.fig, 
-                                                                    self.exp_obj.image_frame, self.frame_bin, 'Frame Rate Image')
-            self.plot_ref_accum_pv, self.cbar_accum_pv, self.bl_accum_pv = self.draw_image(self.canvas_frame_pv.ax2, self.canvas_frame_pv.fig, 
-                                                                    self.exp_obj.image_accum, self.accum_bin, 'Accumulated Image')
-            
-            self.plot_ref_ct_pv = self.draw_plot(self.canvas_frame_pv.ax4, [], [], 'Accumulated'+'\n'+'Photons vs. Time')
-
-            self.draw_hist(self.canvas_frame_pv.ax3, [], 'Pulse Height'+'\n'+'Histogram')
+            self.canvas_frame_pv.draw_frame_image(self.exp_obj.image_frame, self.frame_bin)
+            self.canvas_frame_pv.draw_accum_image(self.exp_obj.image_accum, self.accum_bin)
+            self.canvas_frame_pv.draw_plot([], [], 'Accumulated'+'\n'+'Photons vs. Time')
+            self.canvas_frame_pv.draw_hist([], 'Pulse Height'+'\n'+'Histogram')
 
         else:
 
@@ -449,11 +436,11 @@ class MainWindow(QtWidgets.QWidget):
         self.pv_obj.load_ttag(pv_df)
 
         self.pv_data_label.setText('Loaded Data: '+str(self.pv_obj.outname_df))
-        self.exptime_label_pv.setText('Elapsed Time: '+str(self.pv_obj.time_lis[-1])+' Seconds')
-        self.frame_ct_label_pv.setText('Photons per Second: '+str(self.pv_obj.frame_rate) 
+        self.exptime_label_pv.setText('Elapsed Time: '+str(np.round(self.pv_obj.time_lis[-1], 1))+' Seconds')
+        self.frame_ct_label_pv.setText('Photons per Second: '+str(np.round(self.pv_obj.frame_rate,1)) 
                                                 + '\n' + 'Median Photons per Second: '
                                                 + str(np.round(np.median(self.pv_obj.frame_rate_lis), 2)))
-        self.accum_ct_label_pv.setText('Total Photons Accumulated: '+str(self.pv_obj.accum_count))
+        self.accum_ct_label_pv.setText('Total Photons Accumulated: '+str(int(self.pv_obj.accum_count)))
 
     def load_current_data(self):
         self.pv_data = pd.read_csv(self.outname_df, parse_dates=True, date_parser=self.dateparse_df, index_col='dt')
