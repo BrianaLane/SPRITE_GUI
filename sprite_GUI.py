@@ -115,6 +115,41 @@ class MplCanvas(FigureCanvas):
         self.ax4 .tick_params(axis='x', colors="#9fd3c7")
         self.ax4 .tick_params(axis='y', colors="#9fd3c7")
 
+    def update_figures(self, frame_im, accum_im, frame_bin, accum_bin, ph_lis, time_lis, accum_ct_lis):
+
+        bin_image_frame = self.bin_image(frame_im, frame_bin)
+        bin_image_accum = self.bin_image(accum_im, accum_bin)
+
+        if np.max(frame_im) == 0:
+            max_frame = 10
+            max_accum = 10
+        else:
+            max_frame = np.max(bin_image_frame)
+            max_accum = np.max(bin_image_accum)
+
+        self.frame_im_ref.set_array(bin_image_frame)
+        self.frame_cb_ref.mappable.set_clim(vmin=0, vmax=max_frame)
+        self.frame_bl_ref.set_text('Binned by: '+str(frame_bin))
+
+        self.accum_im_ref.set_array(bin_image_accum)
+        self.accum_cb_ref.mappable.set_clim(vmin=0, vmax=max_accum)
+        self.accum_bl_ref.set_text('Binned by: '+str(accum_bin))
+
+        self.ax3.cla()
+        self.draw_hist(ph_lis, 'Pulse Height'+'\n'+'Histogram')
+
+        self.plot_ref.set_data(time_lis, accum_ct_lis)
+        self.ax4.relim()
+        self.ax4.autoscale_view()
+
+        # Trigger the canvas to update and redraw.
+        self.frame_cb_ref.draw_all() 
+        self.accum_cb_ref.draw_all() 
+        self.draw()
+
+        # flush the GUI events
+        self.flush_events() 
+
 class MainWindow(QtWidgets.QWidget):
 
     def __init__(self, readout_rate, outname_df, outname_fits, detector_size=(2048,2048), overwrite=True):
@@ -263,7 +298,6 @@ class MainWindow(QtWidgets.QWidget):
         #add figure widgets
         self.tab2.grid.addWidget(self.canvas_frame_pv,2,0,10,14)
 
-
         #**********************#
         # build GUI and Timers #
         #**********************#
@@ -305,40 +339,40 @@ class MainWindow(QtWidgets.QWidget):
     def change_accum_bin(self, i):
         self.accum_bin = self.bin_lis[i]
 
-    def update_figures(self):
+    # def update_figures(self, canvas):
 
-        bin_image_frame = self.canvas_frame.bin_image(self.exp_obj.image_frame, self.frame_bin)
-        bin_image_accum = self.canvas_frame.bin_image(self.exp_obj.image_accum, self.accum_bin)
+    #     bin_image_frame = canvas.bin_image(self.exp_obj.image_frame, self.frame_bin)
+    #     bin_image_accum = canvas.bin_image(self.exp_obj.image_accum, self.accum_bin)
 
-        if np.max(self.exp_obj.image_accum) == 0:
-            max_frame = 10
-            max_accum = 10
-        else:
-            max_frame = np.max(bin_image_frame)
-            max_accum = np.max(bin_image_accum)
+    #     if np.max(self.exp_obj.image_accum) == 0:
+    #         max_frame = 10
+    #         max_accum = 10
+    #     else:
+    #         max_frame = np.max(bin_image_frame)
+    #         max_accum = np.max(bin_image_accum)
 
-        self.canvas_frame.frame_im_ref.set_array(bin_image_frame)
-        self.canvas_frame.frame_cb_ref.mappable.set_clim(vmin=0, vmax=max_frame)
-        self.canvas_frame.frame_bl_ref.set_text('Binned by: '+str(self.frame_bin))
+    #     canvas.frame_im_ref.set_array(bin_image_frame)
+    #     canvas.frame_cb_ref.mappable.set_clim(vmin=0, vmax=max_frame)
+    #     canvas.frame_bl_ref.set_text('Binned by: '+str(self.frame_bin))
 
-        self.canvas_frame.accum_im_ref.set_array(bin_image_accum)
-        self.canvas_frame.accum_cb_ref.mappable.set_clim(vmin=0, vmax=max_accum)
-        self.canvas_frame.accum_bl_ref.set_text('Binned by: '+str(self.accum_bin))
+    #     canvas.accum_im_ref.set_array(bin_image_accum)
+    #     canvas.accum_cb_ref.mappable.set_clim(vmin=0, vmax=max_accum)
+    #     canvas.accum_bl_ref.set_text('Binned by: '+str(self.accum_bin))
 
-        self.canvas_frame.ax3.cla()
-        self.canvas_frame.draw_hist(self.exp_obj.ph_lis, 'Pulse Height'+'\n'+'Histogram')
+    #     canvas.ax3.cla()
+    #     canvas.draw_hist(self.exp_obj.ph_lis, 'Pulse Height'+'\n'+'Histogram')
 
-        self.canvas_frame.plot_ref.set_data(self.time_lis, self.exp_obj.accum_count_lis)
-        self.canvas_frame.ax4.relim()
-        self.canvas_frame.ax4.autoscale_view()
+    #     canvas.plot_ref.set_data(self.time_lis, self.exp_obj.accum_count_lis)
+    #     canvas.ax4.relim()
+    #     canvas.ax4.autoscale_view()
 
-        # Trigger the canvas to update and redraw.
-        self.canvas_frame.frame_cb_ref.draw_all() 
-        self.canvas_frame.accum_cb_ref.draw_all() 
-        self.canvas_frame.draw()
+    #     # Trigger the canvas to update and redraw.
+    #     canvas.frame_cb_ref.draw_all() 
+    #     canvas.accum_cb_ref.draw_all() 
+    #     canvas.draw()
 
-        # flush the GUI events
-        self.canvas_frame.flush_events() 
+    #     # flush the GUI events
+    #     canvas.flush_events() 
     
     def run_exposure(self):
 
@@ -375,7 +409,9 @@ class MainWindow(QtWidgets.QWidget):
                                             + str(np.round(np.median(self.exp_obj.frame_rate_lis), 2)))
                 self.accum_ct_label.setText('Total Photons Accumulated: '+str(int(self.exp_obj.accum_count)))
 
-                self.update_figures()
+                self.canvas_frame.update_figures(self.exp_obj.image_frame, self.exp_obj.image_accum, 
+                                                 self.frame_bin, self.accum_bin, self.exp_obj.ph_lis, 
+                                                 self.exp_obj.time_lis, self.exp_obj.accum_count_lis)
 
     def startExposure(self):
         # Set the caption of the start button based on previous caption
@@ -408,7 +444,9 @@ class MainWindow(QtWidgets.QWidget):
         self.accum_slide.setValue(0)
 
         #update figures
-        self.update_figures()
+        self.canvas_frame.update_figures(self.exp_obj.image_frame, self.exp_obj.image_accum, 
+                                         self.frame_bin, self.accum_bin, self.exp_obj.ph_lis, 
+                                         self.exp_obj.time_lis, self.exp_obj.accum_count_lis)
 
         # Set the initial values for the stop watch
         self.exptime_label.setText('Elapsed Time: '+str(self.elapsed_time)+' Seconds')
