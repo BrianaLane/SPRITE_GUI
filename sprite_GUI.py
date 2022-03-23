@@ -307,6 +307,12 @@ class MainWindow(QtWidgets.QWidget):
         self.accum_slide_t2.setTickPosition(QtWidgets.QSlider.TicksBelow)
         self.accum_slide_t2.sliderMoved.connect(self.change_accum_bin_t2)
 
+        #build exposure time scale bar 
+        self.exptime_slide = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        self.exptime_slide.setTickInterval(1)
+        self.exptime_slide.setTickPosition(QtWidgets.QSlider.TicksBelow)
+        self.exptime_slide.sliderMoved.connect(self.change_pv_exptime)
+
         #add button widgets
         self.tab2.grid.addWidget(self.loadexpBtn,0,0,1,2)
         self.tab2.grid.addWidget(self.fileBtn,1,0,1,2)
@@ -322,7 +328,7 @@ class MainWindow(QtWidgets.QWidget):
 
         #add scale bar bin image widgets
         self.tab2.grid.addWidget(self.frame_slide_t2,10,1,1,2)
-        self.tab2.grid.addWidget(self.accum_slide_t2,10,6,1,2)
+        self.tab2.grid.addWidget(self.accum_slide_t2,10,5,1,2)
 
         #**********************#
         # build GUI and Timers #
@@ -364,12 +370,6 @@ class MainWindow(QtWidgets.QWidget):
 
     def change_accum_bin_t1(self, i):
         self.accum_bin_t1 = self.bin_lis[i]
-
-    def change_frame_bin_t2(self, i):
-        self.frame_bin_t2 = self.bin_lis[i]
-
-    def change_accum_bin_t2(self, i):
-        self.accum_bin_t2 = self.bin_lis[i]
     
     def run_exposure(self):
 
@@ -468,42 +468,82 @@ class MainWindow(QtWidgets.QWidget):
         # flush the GUI events
         self.canvas_frame.flush_events() 
 
+    
     #TAB 2 Functions
 
     def dateparse_df(self, dt):    
         return pd.Timestamp(dt)
 
-    def update_ttag_preview(self, pv_df):
+    def update_ttag_preview(self):
 
-        self.pv_obj.load_ttag(pv_df)
+        time_lis = self.pv_obj.time_lis[0:self.time_ind]
+        phot_per_sec = self.pv_obj.frame_phot_rate_lis[self.time_ind]
+        med_phot_per_sec = np.median(self.pv_obj.frame_phot_rate_lis[0:self.time_ind])
+        accum_ct_lis = self.pv_obj.accum_count_lis[0:self.time_ind]
 
         self.pv_data_label.setText('Loaded Data: '+str(self.pv_obj.outname_df))
-        self.exptime_label_pv.setText('Elapsed Time: '+str(np.round(self.pv_obj.time_lis[-1], 1))+' Seconds')
-        self.frame_ct_label_pv.setText('Photons per Second: '+str(np.round(self.pv_obj.frame_phot_rate,1)) 
+        self.exptime_label_pv.setText('Elapsed Time: '+str(np.round(time_lis[-1], 1))+' Seconds')
+        self.frame_ct_label_pv.setText('Photons per Second: '+str(np.round(phot_per_sec,1)) 
                                                 + '\n' + 'Median Photons per Second: '
-                                                + str(np.round(np.median(self.pv_obj.frame_phot_rate_lis), 2)))
-        self.accum_ct_label_pv.setText('Total Photons Accumulated: '+str(int(self.pv_obj.accum_count)))
+                                                + str(np.round(med_phot_per_sec, 2)))
+        self.accum_ct_label_pv.setText('Total Photons Accumulated: '+str(int(accum_ct_lis[-1])))
 
+        pv_datetime = self.pv_obj.datetime_lis[self.time_ind]
 
-        self.canvas_frame_pv.update_figures(self.pv_obj.image_frame, self.pv_obj.image_accum, 
-                                            self.frame_bin_t2, self.accum_bin_t2, self.pv_obj.ph_lis, 
-                                            self.pv_obj.time_lis, self.pv_obj.accum_count_lis)
+        pv_data_reidx = self.pv_data.copy().reset_index()
+        dt_ind_vals = pv_data_reidx[pv_data_reidx['dt']==pv_datetime].index.values
+
+        #find only photons from last time frame
+        pv_frame_df = self.pv_data.iloc[dt_ind_vals[0]:dt_ind_vals[-1]+1]
+        image_frame = self.pv_obj.ttag_to_image(pv_frame_df)
+
+        pv_accum_df = self.pv_data.iloc[0:dt_ind_vals[-1]+1]
+        image_accum = self.pv_obj.ttag_to_image(pv_accum_df)
+
+        ph_lis = pv_accum_df['p'].values
+
+        self.canvas_frame_pv.update_figures(image_frame, image_accum, self.frame_bin_t2, self.accum_bin_t2,
+                                            ph_lis, time_lis, accum_ct_lis)
+
 
     def load_current_data(self):
-        self.pv_data = pd.read_csv(self.outname_df, parse_dates=True, date_parser=self.dateparse_df, index_col='dt')
-
-        self.pv_obj = sprite_exp.sprite_obs(outname_df=self.outname_df, outname_fits=self.outname_fits,
-                                             detector_size=self.detector_size, save_ttag=False, overwrite=False)
-        self.update_ttag_preview(self.pv_data)
+        dat_filename = self.outname_df
+        self.initialize_data_preview(dat_filename)
 
     def load_ttag_data(self):
         dlg = QtWidgets.QFileDialog.getOpenFileName(self, "CSV File", "./", "CSV files (*.csv)")
+        dat_filename = dlg[0]
+        self.initialize_data_preview(dat_filename)
 
-        self.pv_data = pd.read_csv(dlg[0], parse_dates=True, date_parser=self.dateparse_df, index_col='dt')
+    def initialize_data_preview(self, dat_filename):
+        self.pv_data = pd.read_csv(dat_filename, parse_dates=True, date_parser=self.dateparse_df, index_col='dt')
 
-        self.pv_obj = sprite_exp.sprite_obs(outname_df=dlg[0], outname_fits=self.outname_fits,
+        self.pv_obj = sprite_exp.sprite_obs(outname_df=dat_filename, outname_fits=self.outname_fits,
                                              detector_size=self.detector_size, save_ttag=False, overwrite=False)
-        self.update_ttag_preview(self.pv_data)
+
+        self.pv_obj.load_ttag(self.pv_data)
+
+        slide_range = len(self.pv_obj.time_lis)-1
+        self.time_ind = slide_range
+
+        self.exptime_slide.setMinimum(1)
+        self.exptime_slide.setMaximum(slide_range)
+        self.exptime_slide.setValue(slide_range)
+        self.tab2.grid.addWidget(self.exptime_slide,11,0,1,2)
+        
+        self.update_ttag_preview()
+
+    def change_frame_bin_t2(self, i):
+        self.frame_bin_t2 = self.bin_lis[i]
+        self.update_ttag_preview()
+
+    def change_accum_bin_t2(self, i):
+        self.accum_bin_t2 = self.bin_lis[i]
+        self.update_ttag_preview()
+
+    def change_pv_exptime(self, i):
+        self.time_ind = i
+        self.update_ttag_preview()
 
 #Build and run GUI when script is run
 if __name__ == "__main__":

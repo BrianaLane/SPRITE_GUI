@@ -70,8 +70,8 @@ class sprite_obs():
 		self.frame_count = self.frame_count_lis[-1]
 		self.accum_count = self.accum_count_lis[-1]
 
-		datetime_lis = photon_ct_df.index.values
-		timedelt_lis = [(i-datetime_lis[0])/np.timedelta64(1,'s') for i in datetime_lis]
+		self.datetime_lis = photon_ct_df.index.values
+		timedelt_lis = [(i-self.datetime_lis[0])/np.timedelta64(1,'s') for i in self.datetime_lis]
 		#this method of calculaing the time results in the first value being zero
 		#need to update the values by the time of the first readout 
 		#estimate time of first readout by taking median of difference between times and adding to time values
@@ -85,7 +85,7 @@ class sprite_obs():
 
 		self.image_accum = self.ttag_to_image(ttag_df)
 		#find only photons from last time frame
-		frame_ttag_df = ttag_df.loc[datetime_lis[-1]]
+		frame_ttag_df = ttag_df.loc[self.datetime_lis[-1]]
 		self.image_frame = self.ttag_to_image(frame_ttag_df)
 
 		self.ph_lis = ttag_df['p'].values
