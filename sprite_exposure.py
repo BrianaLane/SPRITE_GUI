@@ -90,6 +90,7 @@ class sprite_obs():
 
 		self.ph_lis = ttag_df['p'].values
 
+	#Jack
 	def update_image(self, dat_df):
 
 		im = self.ttag_to_image(dat_df)
@@ -126,19 +127,39 @@ class sprite_obs():
 		self.num_dat_updates += 1
 
 
-	def aquire_data(self, read_name):
+	def bytes_to_data(self, byte_array):
+
+		data_array = byte_array
+
+		#read in file with stored byte info 
+		#this open buffer file and file the new data points with index
+		#have checks for missed bytes - LATER 
+
+		#build a new array 4 (columns) x #photons big (rows)
+		#col1: x, col2: y, col3: p, col4: dt
+
+		return data_arry
+
+
+
+	def aquire_data(self, buffer_filename):
 
 		#need to do whatever to read in the data type that should be saved to the input dat_path
 
-		read_data = pd.read_csv(read_name).values
+		#open the buffer file and read in new photons
+		buffer_data = pd.read_csv(buffer_filename).values
+		#buffer_data = np.load(buffer_filename.npy)
 
-		dat_df = pd.DataFrame(read_data, columns=['x', 'y', 'p', 'dt'])
+		data_array = self.bytes_to_data(buffer_data)
+
+		dat_df = pd.DataFrame(data_array, columns=['x', 'y', 'p', 'dt'])
 
 		self.update_image(dat_df)
 
 		return dat_df
 
 
+	#Jack
 	def aquire_sim_data(self, sim_df_name, read_name='sim_dat.csv', photon_rate=1000):
 
 		sim_obj = sprite_sim.sim_data(sim_df_name)
@@ -160,4 +181,7 @@ class sprite_obs():
 
 
 
-
+print(outname_df)
+exp_obj = sprite_exp.sprite_obs(outname_df=self.outname_df, outname_fits=self.outname_fits,
+                                             detector_size=self.detector_size, save_ttag=True, overwrite=self.overwrite)
+print(exp_obj.outname_df)

@@ -7,9 +7,6 @@ Created on Thu Jan 20 15:41:43 2022
 
 Ideas:
 add buttons/dropdown on count rate plot to show frame ct vs time or accum ct vs time or both
-add scale bar to change the binning of the images
-add tab that allows plotting static images of old data (or snapshot frames over time window)
-
 """
 
 import sys
@@ -168,6 +165,7 @@ class MainWindow(QtWidgets.QWidget):
             ttag_df = pd.DataFrame(columns=['x', 'y', 'p', 'dt'])
             ttag_df.to_csv(self.outname_df, index=False)
 
+        #Jack
         self.exp_obj = sprite_exp.sprite_obs(outname_df=self.outname_df, outname_fits=self.outname_fits,
                                              detector_size=self.detector_size, save_ttag=True, overwrite=self.overwrite)
         self.exp_obj.frame_rate = self.readout_rate
@@ -398,6 +396,9 @@ class MainWindow(QtWidgets.QWidget):
                 #count the elapsed time
                 self.elapsed_time += self.readout_rate
 
+                #JACK LOOK HERE!!!!!
+                #change this from aquire_sim_data to aquire_data function in sprite_obs object which is called self.exp_obj
+                #you also need to update parameters to aquire_data parameters
                 dat_df = self.exp_obj.aquire_sim_data(sim_df_name='example_simulated_gauss_ttag.csv', photon_rate=10000)
 
                 self.elap_time_lis.append(self.elapsed_time)
