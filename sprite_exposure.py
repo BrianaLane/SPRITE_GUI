@@ -180,8 +180,3 @@ class sprite_obs():
 
 
 
-
-print(outname_df)
-exp_obj = sprite_exp.sprite_obs(outname_df=self.outname_df, outname_fits=self.outname_fits,
-                                             detector_size=self.detector_size, save_ttag=True, overwrite=self.overwrite)
-print(exp_obj.outname_df)
