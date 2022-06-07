@@ -102,7 +102,6 @@ class sprite_obs():
 
 		self.ph_lis = ttag_df['p'].values
 
-	#Jack
 	def update_image(self, dat_df):
 
 		im = self.ttag_to_image(dat_df)
@@ -191,7 +190,7 @@ class sprite_obs():
 		timestamp = dt.datetime.now()
 		dt_lis = [timestamp]*len(xlist)
 
-		dat_df = pd.DataFrame({'x':xlist, 'y':ylist, 'p':plist, 'dt'_dt_lis})
+		dat_df = pd.DataFrame({'x':xlist, 'y':ylist, 'p':plist, 'dt':dt_lis})
 
 		self.update_image(dat_df)
 
