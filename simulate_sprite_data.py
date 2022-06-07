@@ -150,12 +150,13 @@ class sim_data():
             print('No simulated photon data built')
             
     
-    def simulate_data_flow(self, photon_rate=10, delay=0, start_ind=0,
+    def simulate_data_flow(self, photon_rate=10, delay=0, start_ind=0, sim_dt=True, 
                            rand_photons=False, output_file=False, output_filename='/sim_dat.csv',
                            verbose=False):
 
-        start = time.time()
-        start_time = dt.datetime.now()
+        if sim_dt:
+            start = time.time()
+            start_time = dt.datetime.now()
         
         if rand_photons:
             rand_inds = np.random.randint(low=start_ind, high=self.n_photons, size=photon_rate)
@@ -164,7 +165,8 @@ class sim_data():
         else:
             dat_df = self.sim_photon_df.iloc[start_ind: start_ind+photon_rate].copy()
         
-        dat_df['dt'] = pd.Timestamp(start_time)
+        if sim_dt:
+            dat_df['dt'] = pd.Timestamp(start_time)
         
         time.sleep(delay)
         end = time.time()
@@ -176,7 +178,7 @@ class sim_data():
             dat_df.to_csv(output_filename, index=False)
             return None
         
-        return dat_df.values
+        return dat_df
 
 
 

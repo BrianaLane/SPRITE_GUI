@@ -5,7 +5,7 @@ import time
 import random
 from astropy.io import fits
 
-from pylibftdi import Device
+#import ftd2xx as ftd
 
 from matplotlib import pyplot as plt
 import simulate_sprite_data as sprite_sim
@@ -58,6 +58,8 @@ class sprite_obs():
 		self.frame_phot_rate_lis = []
 
 		self.num_dat_updates = 0
+
+		self.extra_read_bits = ''
 
 	def ttag_to_image(self, data_df):
 		im = np.zeros(self.detector_size)
@@ -137,47 +139,76 @@ class sprite_obs():
 		self.num_dat_updates += 1
 
 
-	def bytes_to_data(self, byte_array):
+	def bitstream_to_ttag(self, byte_list):
 
-		data_array = byte_array
+		bit_str = ''.join(byte_list)
 
-		#read in file with stored byte info 
-		#this open buffer file and file the new data points with index
-		#have checks for missed bytes - LATER 
+		# if there were leftover bits from the last line append them to the front of the bit string
+		allbits_str = self.extra_read_bits + bit_str
 
-		#build a new array 4 (columns) x #photons big (rows)
-		#col1: x, col2: y, col3: p, col4: dt
+		# convert the string of all bits to an array of bits so the shape can be manipulated
+		# each bit is still a string data type in the array
+		allbits_arr = np.array(list(allbits_str))
 
-		return data_arry
+		# take the total number of bits in the string mod 32
+		# this is the extra number of bits at the end that don't make a complete 32 bit word 
+		# these bits will get appended to the beginning of the next line's bit string
+		extra_bit_len = len(allbits_arr)%32 
+		
+		# Remove the extra bits so the total number of bits is divisible by 32
+		fullbits = allbits_arr[0: len(allbits_arr) - extra_bit_len]
+
+		# reshape into 2D array so each line is 32 bits long
+		bitwords = fullbits.reshape((-1, 32))
+		# this is the number of complete 32 bit words in the line
+		num_bitwords = np.shape(bitwords)[0]
+
+		# join and save the first 12 bits of each line to X
+		x_bits = [''.join(i) for i in bitwords[:, 0:12]]
+		# join and save the second 12 bits of each line to Y
+		y_bits = [''.join(i) for i in bitwords[:, 12:24]]
+		# join and save the last 8 bits of each line to P
+		p_bits = [''.join(i) for i in bitwords[:, 24::]]
+
+		# convert each grouping of bits to an integer
+		x_ints = [int(i,2) for i in x_bits]
+		y_ints = [int(i,2) for i in y_bits]
+		p_ints = [int(i,2) for i in p_bits]
+
+		# set the extrabits variable to be a string of the extra bits that were cut off
+		self.extra_read_bits = allbits_str[len(allbits_arr) - extra_bit_len::]
+
+		return x_ints, y_ints, p_ints, self.extra_read_bits
 
 
+	def aquire_data_fromFTDI(self, FTDI):
 
-	def aquire_data(self, buffer_filename):
+		byte_length = FTDI.getQueueStatus()
+		byte_list = FTDI.read(byte_length)
 
-		#need to do whatever to read in the data type that should be saved to the input dat_path
+		xlist, ylist, plist = self.bitstream_to_ttag(byte_list)
 
-		#open the buffer file and read in new photons
-		buffer_data = pd.read_csv(buffer_filename).values
-		#buffer_data = np.load(buffer_filename.npy)
+		timestamp = dt.datetime.now()
+		dt_lis = [timestamp]*len(xlist)
 
-		data_array = self.bytes_to_data(buffer_data)
-
-		dat_df = pd.DataFrame(data_array, columns=['x', 'y', 'p', 'dt'])
+		dat_df = pd.DataFrame({'x':xlist, 'y':ylist, 'p':plist, 'dt'_dt_lis})
 
 		self.update_image(dat_df)
 
 		return dat_df
 
 
-	#Jack
-	def aquire_sim_data(self, sim_df_name, read_name='sim_dat.csv', photon_rate=1000):
+	def aquire_sim_data(self, sim_df_name, photon_rate=1000):
 
 		sim_obj = sprite_sim.sim_data(sim_df_name)
 
-		sim_obj.simulate_data_flow(photon_rate=photon_rate, rand_photons=True,
-									output_file=True, output_filename=read_name)
+		dat_df = sim_obj.simulate_data_flow(photon_rate=photon_rate, sim_dt=False, 
+											rand_photons=True, output_file=False)
 
-		dat_df = pd.read_csv(read_name)
+		timestamp = dt.datetime.now()
+		dt_lis = [timestamp]*len(dat_df)
+		dat_df['dt'] = dt_lis
+
 		self.update_image(dat_df)
 
 		return dat_df
