@@ -176,11 +176,13 @@ class MainWindow(QtWidgets.QWidget):
         self.elapsed_time = 0.0
         self.elap_time_lis = [0]
 
-        self.frame_bin_t1 = 1
-        self.accum_bin_t1 = 1
-        self.frame_bin_t2 = 1
-        self.accum_bin_t2 = 1
+        self.frame_bin_t1 = 32
+        self.accum_bin_t1 = 32
+        self.frame_bin_t2 = 32
+        self.accum_bin_t2 = 32
         self.bin_lis = [1, 8, 16, 32, 64, 128]
+
+        self.pv_dat_filename = 'PV'
 
         self.grid = QtWidgets.QGridLayout(self)
 
@@ -225,7 +227,7 @@ class MainWindow(QtWidgets.QWidget):
         self.frame_slide_t1 = QtWidgets.QSlider(QtCore.Qt.Horizontal)
         self.frame_slide_t1.setMinimum(0)
         self.frame_slide_t1.setMaximum(len(self.bin_lis)-1)
-        self.frame_slide_t1.setValue(0)
+        self.frame_slide_t1.setValue(3)
         self.frame_slide_t1.setTickInterval(1)
         self.frame_slide_t1.setTickPosition(QtWidgets.QSlider.TicksBelow)
         self.frame_slide_t1.sliderMoved.connect(self.change_frame_bin_t1)
@@ -233,7 +235,7 @@ class MainWindow(QtWidgets.QWidget):
         self.accum_slide_t1 = QtWidgets.QSlider(QtCore.Qt.Horizontal)
         self.accum_slide_t1.setMinimum(0)
         self.accum_slide_t1.setMaximum(len(self.bin_lis)-1)
-        self.accum_slide_t1.setValue(0)
+        self.accum_slide_t1.setValue(3)
         self.accum_slide_t1.setTickInterval(1)
         self.accum_slide_t1.setTickPosition(QtWidgets.QSlider.TicksBelow)
         self.accum_slide_t1.sliderMoved.connect(self.change_accum_bin_t1)
@@ -274,8 +276,10 @@ class MainWindow(QtWidgets.QWidget):
         #build control buttons
         self.loadexpBtn = QtWidgets.QPushButton('Load Current Exposure')
         self.fileBtn = QtWidgets.QPushButton('Load TTAG Data')
+        self.saveBtn_t2 = QtWidgets.QPushButton('Save ACCUM')
         self.loadexpBtn.pressed.connect(self.load_current_data)
         self.fileBtn.pressed.connect(self.load_ttag_data)
+        self.saveBtn_t2.pressed.connect(self.save_accum_image_t2)
 
         #build labels
         self.pv_data_label = QtWidgets.QLabel('Loaded Data: None')
@@ -292,7 +296,7 @@ class MainWindow(QtWidgets.QWidget):
         self.frame_slide_t2 = QtWidgets.QSlider(QtCore.Qt.Horizontal)
         self.frame_slide_t2.setMinimum(0)
         self.frame_slide_t2.setMaximum(len(self.bin_lis)-1)
-        self.frame_slide_t2.setValue(0)
+        self.frame_slide_t2.setValue(3)
         self.frame_slide_t2.setTickInterval(1)
         self.frame_slide_t2.setTickPosition(QtWidgets.QSlider.TicksBelow)
         self.frame_slide_t2.sliderMoved.connect(self.change_frame_bin_t2)
@@ -300,7 +304,7 @@ class MainWindow(QtWidgets.QWidget):
         self.accum_slide_t2 = QtWidgets.QSlider(QtCore.Qt.Horizontal)
         self.accum_slide_t2.setMinimum(0)
         self.accum_slide_t2.setMaximum(len(self.bin_lis)-1)
-        self.accum_slide_t2.setValue(0)
+        self.accum_slide_t2.setValue(3)
         self.accum_slide_t2.setTickInterval(1)
         self.accum_slide_t2.setTickPosition(QtWidgets.QSlider.TicksBelow)
         self.accum_slide_t2.sliderMoved.connect(self.change_accum_bin_t2)
@@ -314,19 +318,20 @@ class MainWindow(QtWidgets.QWidget):
         #add button widgets
         self.tab2.grid.addWidget(self.loadexpBtn,0,0,1,2)
         self.tab2.grid.addWidget(self.fileBtn,1,0,1,2)
+        self.tab2.grid.addWidget(self.saveBtn_t2,2,0,1,2)
 
         #add label widgets
         self.tab2.grid.addWidget(self.pv_data_label,0,3,1,5)
         self.tab2.grid.addWidget(self.exptime_label_pv,1,3,1,2)
-        self.tab2.grid.addWidget(self.frame_ct_label_pv,13,0,1,2)
-        self.tab2.grid.addWidget(self.accum_ct_label_pv,13,5,1,2)
+        self.tab2.grid.addWidget(self.frame_ct_label_pv,14,0,1,2)
+        self.tab2.grid.addWidget(self.accum_ct_label_pv,14,5,1,2)
 
         #add figure widgets
-        self.tab2.grid.addWidget(self.canvas_frame_pv,2,0,10,14)
+        self.tab2.grid.addWidget(self.canvas_frame_pv,3,0,10,14)
 
         #add scale bar bin image widgets
-        self.tab2.grid.addWidget(self.frame_slide_t2,10,1,1,2)
-        self.tab2.grid.addWidget(self.accum_slide_t2,10,5,1,2)
+        self.tab2.grid.addWidget(self.frame_slide_t2,11,1,1,2)
+        self.tab2.grid.addWidget(self.accum_slide_t2,11,5,1,2)
 
         #**********************#
         # build GUI and Timers #
@@ -358,16 +363,20 @@ class MainWindow(QtWidgets.QWidget):
         if s == False:
             self.exp_obj.save_ttag = False
 
+
     def save_accum_image(self):
         curr_dt = datetime.datetime.now()
         curr_dt_str = curr_dt.strftime("%d%m%Y_%H%M%S")
         self.exp_obj.save_accum(exp_tag=curr_dt_str)
 
+
     def change_frame_bin_t1(self, i):
         self.frame_bin_t1 = self.bin_lis[i]
 
+
     def change_accum_bin_t1(self, i):
         self.accum_bin_t1 = self.bin_lis[i]
+
     
     def run_exposure(self):
 
@@ -414,6 +423,7 @@ class MainWindow(QtWidgets.QWidget):
                                                  self.frame_bin_t1, self.accum_bin_t1, self.exp_obj.ph_lis, 
                                                  self.exp_obj.time_lis, self.exp_obj.accum_count_lis)
 
+
     def startExposure(self):
         # Set the caption of the start button based on previous caption
         if self.startBtn.text() == 'Stop Exposure':
@@ -423,6 +433,7 @@ class MainWindow(QtWidgets.QWidget):
             # making startWatch to true 
             self.runExposure = True
             self.startBtn.setText('Stop Exposure')
+
 
     def resetWindow(self):
         self.runExposure = False
@@ -443,10 +454,10 @@ class MainWindow(QtWidgets.QWidget):
 
         self.elap_time_lis = [0]
 
-        self.frame_bin_t1 = 1
-        self.accum_bin_t1 = 1
-        self.frame_slide_t1.setValue(0)
-        self.accum_slide_t1.setValue(0)
+        self.frame_bin_t1 = 32
+        self.accum_bin_t1 = 32
+        self.frame_slide_t1.setValue(3)
+        self.accum_slide_t1.setValue(3)
 
         #update figures
         self.canvas_frame.update_figures(self.exp_obj.image_frame, self.exp_obj.image_accum, 
@@ -474,6 +485,7 @@ class MainWindow(QtWidgets.QWidget):
 
     def dateparse_df(self, dt):    
         return pd.Timestamp(dt)
+
 
     def update_ttag_preview(self):
 
@@ -511,13 +523,28 @@ class MainWindow(QtWidgets.QWidget):
         dat_filename = self.outname_df
         self.initialize_data_preview(dat_filename)
 
+
     def load_ttag_data(self):
         dlg = QtWidgets.QFileDialog.getOpenFileName(self, "CSV File", "./", "CSV files (*.csv)")
         dat_filename = dlg[0]
         self.initialize_data_preview(dat_filename)
 
+
     def initialize_data_preview(self, dat_filename):
-        self.pv_data = pd.read_csv(dat_filename, parse_dates=True, date_parser=self.dateparse_df, index_col='dt')
+        
+        try:
+            self.pv_data = pd.read_csv(dat_filename, parse_dates=True, date_parser=self.dateparse_df, index_col='dt')
+            self.pv_dat_filename = dat_filename
+
+            if len(self.pv_data) == 0: 
+                self.pv_data_label.setStyleSheet('background-color: #CD4A3D')
+                self.pv_data_label.setText('Loaded Data: EMPTY ARRAY')
+                return('No Preview Data Loaded')
+
+        except FileNotFoundError:
+            self.pv_data_label.setStyleSheet('background-color: #CD4A3D')
+            self.pv_data_label.setText('Loaded Data: FILE NOT FOUND')
+            return('No Preview Data Loaded')
 
         self.pv_obj = sprite_exp.sprite_obs(outname_df=dat_filename, outname_fits=self.outname_fits,
                                              detector_size=self.detector_size, save_ttag=False, overwrite=False)
@@ -534,17 +561,29 @@ class MainWindow(QtWidgets.QWidget):
         
         self.update_ttag_preview()
 
+
+    def save_accum_image_t2(self):
+        frame_dt = self.pv_obj.datetime_lis[self.time_ind]
+        dts = str(frame_dt)
+        frame_dt_str = dts[9:10]+dts[5:7]+dts[0:4]+'_'+dts[11:13]+dts[14:16]+dts[17::].split('.')[0]
+        filename = self.pv_dat_filename.split('/')[-1].split('.csv')[0]
+        self.pv_obj.save_accum(exp_tag=filename+'_'+frame_dt_str)
+
+
     def change_frame_bin_t2(self, i):
         self.frame_bin_t2 = self.bin_lis[i]
         self.update_ttag_preview()
+
 
     def change_accum_bin_t2(self, i):
         self.accum_bin_t2 = self.bin_lis[i]
         self.update_ttag_preview()
 
+
     def change_pv_exptime(self, i):
         self.time_ind = i
         self.update_ttag_preview()
+
 
 #Build and run GUI when script is run
 if __name__ == "__main__":
@@ -554,7 +593,7 @@ if __name__ == "__main__":
     outname_df = 'ttag_exp_test.csv'
     outname_fits = 'ttag_exp_test.fits'
 
-    w = MainWindow(outname_df=outname_df, outname_fits=outname_fits, readout_rate=1, detector_size=(2048,2048), overwrite=True)
+    w = MainWindow(outname_df=outname_df, outname_fits=outname_fits, readout_rate=1, detector_size=(4096,4096), overwrite=True)
     w.setWindowTitle("SPRITE GUI")
     w.setGeometry(0, 0, 1500, 800)
 
