@@ -149,29 +149,20 @@ class MplCanvas(FigureCanvas):
 
 class MainWindow(QtWidgets.QWidget):
 
-    def __init__(self, readout_rate, outname_df, outname_fits, detector_size=(2048,2048), overwrite=True):
+    def __init__(self, readout_rate, outname_df, outname_fits, detector_size=(2048,2048)):
         super(MainWindow, self).__init__()
 
         self.outname_df = outname_df
+        self.outname_base_df = outname_df
         self.outname_fits = outname_fits
-        self.detector_size = detector_size
-        self.overwrite = overwrite
 
         self.readout_rate = readout_rate
         self.detector_size = detector_size
 
-        if overwrite:
-            # build dataframe to store incoming photons
-            ttag_df = pd.DataFrame(columns=['x', 'y', 'p', 'dt'])
-            ttag_df.to_csv(self.outname_df, index=False)
-
-        #Jack
-        self.exp_obj = sprite_exp.sprite_obs(outname_df=self.outname_df, outname_fits=self.outname_fits,
-                                             detector_size=self.detector_size, save_ttag=True, overwrite=self.overwrite)
-        self.exp_obj.frame_rate = self.readout_rate
-
         self.initialize_figure = False
+        self.initialize_exposure = False
         self.runExposure = False
+        self.overwrite = False
 
         self.elapsed_time = 0.0
         self.elap_time_lis = [0]
@@ -203,15 +194,19 @@ class MainWindow(QtWidgets.QWidget):
 
         #build labels
         self.exptime_label = QtWidgets.QLabel('Elapsed Time: '+str(self.elapsed_time)+' Seconds')
-        self.frame_ct_label = QtWidgets.QLabel('Photons per Second: '+str(self.exp_obj.frame_count) 
-                                                + '\n' + 'Median Photons per Second: '
-                                                + str(np.round(np.median(self.exp_obj.frame_count_lis), 2)))
-        self.accum_ct_label = QtWidgets.QLabel('Total Photons Accumulated: '+str(self.exp_obj.accum_count))
+        self.frame_ct_label = QtWidgets.QLabel('Photons per Second: '+str(0.0) 
+                                                + '\n' + 'Median Photons per Second: ' + str(0.0))
+        self.accum_ct_label = QtWidgets.QLabel('Total Photons Accumulated: '+str(0))
 
         #build save checkbox/button
-        self.ttag_save_ch = QtWidgets.QRadioButton('Save TTAG')
+        self.ttag_save_ch = QtWidgets.QCheckBox('Save TTAG')
         self.ttag_save_ch.setChecked(True)
         self.ttag_save_ch.toggled.connect(self.read_save_ttag)
+
+        #build overwrite checkbox/button
+        self.ttag_overwrite_ch = QtWidgets.QCheckBox('Overwrite Test')
+        self.ttag_overwrite_ch.setChecked(False)
+        self.ttag_overwrite_ch.toggled.connect(self.set_overwrite)
 
         self.accum_save_Btn = QtWidgets.QPushButton('Save ACCUM')
         self.accum_save_Btn.pressed.connect(self.save_accum_image)
@@ -220,7 +215,7 @@ class MainWindow(QtWidgets.QWidget):
         self.startBtn = QtWidgets.QPushButton('Start Exposure')
         self.startBtn.pressed.connect(self.startExposure)
 
-        self.restBtn = QtWidgets.QPushButton('Reset Window')
+        self.restBtn = QtWidgets.QPushButton('Reset Exposure')
         self.restBtn.pressed.connect(self.resetWindow)
 
         #build image binning scale bars
@@ -231,6 +226,7 @@ class MainWindow(QtWidgets.QWidget):
         self.frame_slide_t1.setTickInterval(1)
         self.frame_slide_t1.setTickPosition(QtWidgets.QSlider.TicksBelow)
         self.frame_slide_t1.sliderMoved.connect(self.change_frame_bin_t1)
+        self.frame_slide_t1.setGeometry(10,10,8,20)
 
         self.accum_slide_t1 = QtWidgets.QSlider(QtCore.Qt.Horizontal)
         self.accum_slide_t1.setMinimum(0)
@@ -239,6 +235,7 @@ class MainWindow(QtWidgets.QWidget):
         self.accum_slide_t1.setTickInterval(1)
         self.accum_slide_t1.setTickPosition(QtWidgets.QSlider.TicksBelow)
         self.accum_slide_t1.sliderMoved.connect(self.change_accum_bin_t1)
+        self.frame_slide_t1.setGeometry(10,10,8,20)
 
         #Figure Grid
         self.canvas_frame = MplCanvas(self)
@@ -250,24 +247,34 @@ class MainWindow(QtWidgets.QWidget):
         self.tab1.grid.addWidget(self.restBtn,1,0,1,2)
 
         #add save widgets
-        self.tab1.grid.addWidget(self.ttag_save_ch,0,5,1,2)
-        self.tab1.grid.addWidget(self.accum_save_Btn,1,5,1,2)
+        self.tab1.grid.addWidget(self.ttag_save_ch,0,3,1,1)
+        self.tab1.grid.addWidget(self.ttag_overwrite_ch,0,4,1,1)
+        self.tab1.grid.addWidget(self.accum_save_Btn,1,3,1,2)
 
         #add figure widgets
-        self.tab1.grid.addWidget(self.canvas_frame,2,0,10,14)
+        self.tab1.grid.addWidget(self.canvas_frame,2,0,3,9)
 
         #add scale bar bin image widgets
-        self.tab1.grid.addWidget(self.frame_slide_t1,10,1,1,2)
-        self.tab1.grid.addWidget(self.accum_slide_t1,10,6,1,2)
+        self.tab1.grid.addWidget(self.frame_slide_t1,5,1,1,2)
+        self.tab1.grid.addWidget(self.accum_slide_t1,5,4,1,2)
 
         #add label widgets
-        self.tab1.grid.addWidget(self.exptime_label,0,8,1,2)
-        self.tab1.grid.addWidget(self.frame_ct_label,13,0,1,2)
-        self.tab1.grid.addWidget(self.accum_ct_label,13,5,1,2)
+        self.tab1.grid.addWidget(self.exptime_label,0,6,1,3)
+        self.tab1.grid.addWidget(self.frame_ct_label,7,0,1,3)
+        self.tab1.grid.addWidget(self.accum_ct_label,7,3,1,3)
 
+        self.tab1.grid.setRowStretch(0,1)
+        self.tab1.grid.setRowStretch(1,1)
+        self.tab1.grid.setRowStretch(2,50)
+        self.tab1.grid.setRowStretch(3,50)
+        self.tab1.grid.setRowStretch(4,50)
+        self.tab1.grid.setRowStretch(5,1)
+        self.tab1.grid.setRowStretch(6,1)
+        self.tab1.grid.setRowStretch(7,1)
 
-        #self.tab1.grid.setColumnStretch (column, stretch)
-        #self.tab1.grid.setRowStretch (row, stretch)
+        for c in range(9):
+            self.tab1.grid.setColumnStretch(c,1)
+
 
         #***************************#
         # Second tab on main window #
@@ -300,6 +307,7 @@ class MainWindow(QtWidgets.QWidget):
         self.frame_slide_t2.setTickInterval(1)
         self.frame_slide_t2.setTickPosition(QtWidgets.QSlider.TicksBelow)
         self.frame_slide_t2.sliderMoved.connect(self.change_frame_bin_t2)
+        self.frame_slide_t2.setGeometry(10,10,8,20)
 
         self.accum_slide_t2 = QtWidgets.QSlider(QtCore.Qt.Horizontal)
         self.accum_slide_t2.setMinimum(0)
@@ -308,6 +316,7 @@ class MainWindow(QtWidgets.QWidget):
         self.accum_slide_t2.setTickInterval(1)
         self.accum_slide_t2.setTickPosition(QtWidgets.QSlider.TicksBelow)
         self.accum_slide_t2.sliderMoved.connect(self.change_accum_bin_t2)
+        self.accum_slide_t2.setGeometry(10,10,8,20)
 
         #build exposure time scale bar 
         self.exptime_slide = QtWidgets.QSlider(QtCore.Qt.Horizontal)
@@ -316,22 +325,35 @@ class MainWindow(QtWidgets.QWidget):
         self.exptime_slide.sliderMoved.connect(self.change_pv_exptime)
 
         #add button widgets
-        self.tab2.grid.addWidget(self.loadexpBtn,0,0,1,2)
-        self.tab2.grid.addWidget(self.fileBtn,1,0,1,2)
-        self.tab2.grid.addWidget(self.saveBtn_t2,2,0,1,2)
+        self.tab2.grid.addWidget(self.loadexpBtn,0,0,1,3)
+        self.tab2.grid.addWidget(self.fileBtn,1,0,1,3)
+        self.tab2.grid.addWidget(self.saveBtn_t2,0,5,1,2)
 
         #add label widgets
-        self.tab2.grid.addWidget(self.pv_data_label,0,3,1,5)
-        self.tab2.grid.addWidget(self.exptime_label_pv,1,3,1,2)
-        self.tab2.grid.addWidget(self.frame_ct_label_pv,14,0,1,2)
-        self.tab2.grid.addWidget(self.accum_ct_label_pv,14,5,1,2)
+        self.tab2.grid.addWidget(self.exptime_label_pv,0,3,1,2)
+        self.tab2.grid.addWidget(self.pv_data_label,1,3,1,3)
+
+        self.tab2.grid.addWidget(self.frame_ct_label_pv,7,0,2,3)
+        self.tab2.grid.addWidget(self.accum_ct_label_pv,7,3,2,3)
 
         #add figure widgets
-        self.tab2.grid.addWidget(self.canvas_frame_pv,3,0,10,14)
+        self.tab2.grid.addWidget(self.canvas_frame_pv,2,0,3,9)
 
         #add scale bar bin image widgets
-        self.tab2.grid.addWidget(self.frame_slide_t2,11,1,1,2)
-        self.tab2.grid.addWidget(self.accum_slide_t2,11,5,1,2)
+        self.tab2.grid.addWidget(self.frame_slide_t2,5,1,1,2)
+        self.tab2.grid.addWidget(self.accum_slide_t2,5,4,1,2)
+
+        self.tab2.grid.setRowStretch(0,1)
+        self.tab2.grid.setRowStretch(1,1)
+        self.tab2.grid.setRowStretch(2,50)
+        self.tab2.grid.setRowStretch(3,50)
+        self.tab2.grid.setRowStretch(4,50)
+        self.tab2.grid.setRowStretch(5,1)
+        self.tab2.grid.setRowStretch(6,1)
+        self.tab2.grid.setRowStretch(7,1)
+
+        for c in range(9):
+            self.tab2.grid.setColumnStretch(c,1)
 
         #**********************#
         # build GUI and Timers #
@@ -357,17 +379,19 @@ class MainWindow(QtWidgets.QWidget):
 
     #TAB 1 functions
 
-    def read_save_ttag(self, s):
-        if s == True:
-            self.exp_obj.save_ttag = True
-        if s == False:
-            self.exp_obj.save_ttag = False
+    def set_overwrite(self):
+        self.overwrite = self.ttag_overwrite_ch.isChecked()
+
+    def read_save_ttag(self):
+        if self.initialize_exposure:
+            self.exp_obj.save_ttag = self.ttag_save_ch.isChecked()
 
 
     def save_accum_image(self):
-        curr_dt = datetime.datetime.now()
-        curr_dt_str = curr_dt.strftime("%d%m%Y_%H%M%S")
-        self.exp_obj.save_accum(exp_tag=curr_dt_str)
+        if self.initialize_exposure:
+            curr_dt = datetime.datetime.now()
+            curr_dt_str = curr_dt.strftime("%d%m%Y_%H%M%S")
+            self.exp_obj.save_accum(exp_tag=curr_dt_str)
 
 
     def change_frame_bin_t1(self, i):
@@ -386,14 +410,14 @@ class MainWindow(QtWidgets.QWidget):
 
             print('DRAW FIGURES')
 
-            self.canvas_frame.draw_frame_image(self.exp_obj.image_frame, self.frame_bin_t1)
-            self.canvas_frame.draw_accum_image(self.exp_obj.image_accum, self.accum_bin_t1)
-            self.canvas_frame.draw_plot(self.exp_obj.time_lis, self.exp_obj.accum_count_lis, 'Accumulated'+'\n'+'Photons vs. Time')
-            self.canvas_frame.draw_hist(self.exp_obj.ph_lis, 'Pulse Height'+'\n'+'Histogram')
+            self.canvas_frame.draw_frame_image(np.zeros(self.detector_size), self.frame_bin_t1)
+            self.canvas_frame.draw_accum_image(np.zeros(self.detector_size), self.accum_bin_t1)
+            self.canvas_frame.draw_plot([], [], 'Accumulated'+'\n'+'Photons vs. Time')
+            self.canvas_frame.draw_hist([], 'Pulse Height'+'\n'+'Histogram')
 
             #build initial figures for second tab
-            self.canvas_frame_pv.draw_frame_image(self.exp_obj.image_frame, self.frame_bin_t2)
-            self.canvas_frame_pv.draw_accum_image(self.exp_obj.image_accum, self.accum_bin_t2)
+            self.canvas_frame_pv.draw_frame_image(np.zeros(self.detector_size), self.frame_bin_t2)
+            self.canvas_frame_pv.draw_accum_image(np.zeros(self.detector_size), self.accum_bin_t2)
             self.canvas_frame_pv.draw_plot([], [], 'Accumulated'+'\n'+'Photons vs. Time')
             self.canvas_frame_pv.draw_hist([], 'Pulse Height'+'\n'+'Histogram')
 
@@ -425,6 +449,20 @@ class MainWindow(QtWidgets.QWidget):
 
 
     def startExposure(self):
+
+        if not self.initialize_exposure:
+            # build SPRITE exposure object #
+            self.exp_obj = sprite_exp.sprite_obs(outname_df=self.outname_base_df, outname_fits=self.outname_fits,
+                                             detector_size=self.detector_size, new_exp=True, 
+                                             save_ttag=self.ttag_save_ch.isChecked(), 
+                                             overwrite=self.overwrite)
+            self.outname_df = self.exp_obj.outname_df
+            self.exp_obj.frame_rate = self.readout_rate
+            self.initialize_exposure = True
+
+            self.ttag_overwrite_ch.setCheckable(False)
+            self.ttag_overwrite_ch.setStyleSheet("QCheckBox::indicator:hover {border: 2px solid #8a8a8a;}")
+
         # Set the caption of the start button based on previous caption
         if self.startBtn.text() == 'Stop Exposure':
             self.startBtn.setText('Resume Exposure')
@@ -480,7 +518,13 @@ class MainWindow(QtWidgets.QWidget):
         # flush the GUI events
         self.canvas_frame.flush_events() 
 
-    
+        self.initialize_exposure = False
+        self.ttag_overwrite_ch.setCheckable(True)
+        self.ttag_overwrite_ch.setChecked(False)
+        self.overwrite = False 
+        self.ttag_overwrite_ch.setStyleSheet("color: white")
+        self.ttag_overwrite_ch.setStyleSheet("QCheckBox::indicator:hover {border: 2px solid #9fd3c7;}")
+
     #TAB 2 Functions
 
     def dateparse_df(self, dt):    
@@ -494,7 +538,8 @@ class MainWindow(QtWidgets.QWidget):
         med_phot_per_sec = np.median(self.pv_obj.frame_phot_rate_lis[0:self.time_ind])
         accum_ct_lis = self.pv_obj.accum_count_lis[0:self.time_ind]
 
-        self.pv_data_label.setText('Loaded Data: '+str(self.pv_obj.outname_df))
+        self.pv_data_label.setStyleSheet('background-color: #323232')
+        self.pv_data_label.setText('Loaded Data: '+str(self.pv_dat_filename).split('/')[-1])
         self.exptime_label_pv.setText('Elapsed Time: '+str(np.round(time_lis[-1], 1))+' Seconds')
         self.frame_ct_label_pv.setText('Photons per Second: '+str(np.round(phot_per_sec,1)) 
                                                 + '\n' + 'Median Photons per Second: '
@@ -520,7 +565,7 @@ class MainWindow(QtWidgets.QWidget):
 
 
     def load_current_data(self):
-        dat_filename = self.outname_df
+        dat_filename = self.exp_obj.outname_df
         self.initialize_data_preview(dat_filename)
 
 
@@ -547,7 +592,8 @@ class MainWindow(QtWidgets.QWidget):
             return('No Preview Data Loaded')
 
         self.pv_obj = sprite_exp.sprite_obs(outname_df=dat_filename, outname_fits=self.outname_fits,
-                                             detector_size=self.detector_size, save_ttag=False, overwrite=False)
+                                             detector_size=self.detector_size, new_exp=False, 
+                                             save_ttag=False, overwrite=False)
 
         self.pv_obj.load_ttag(self.pv_data)
 
@@ -557,7 +603,8 @@ class MainWindow(QtWidgets.QWidget):
         self.exptime_slide.setMinimum(1)
         self.exptime_slide.setMaximum(slide_range)
         self.exptime_slide.setValue(slide_range)
-        self.tab2.grid.addWidget(self.exptime_slide,11,0,1,2)
+        self.exptime_slide.setStyleSheet("QSlider::groove:horizontal {width: 1000px}")
+        self.tab2.grid.addWidget(self.exptime_slide,6,0,1,8)
         
         self.update_ttag_preview()
 
@@ -590,10 +637,10 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     app.setStyleSheet(open("stylesheet.qss", "r").read())
 
-    outname_df = 'ttag_exp_test.csv'
-    outname_fits = 'ttag_exp_test.fits'
+    outname_df = 'ttag_exp.csv'
+    outname_fits = 'ttag_exp.fits'
 
-    w = MainWindow(outname_df=outname_df, outname_fits=outname_fits, readout_rate=1, detector_size=(4096,4096), overwrite=True)
+    w = MainWindow(outname_df=outname_df, outname_fits=outname_fits, readout_rate=1, detector_size=(4096,4096))
     w.setWindowTitle("SPRITE GUI")
     w.setGeometry(0, 0, 1500, 800)
 

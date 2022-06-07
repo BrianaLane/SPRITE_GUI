@@ -14,7 +14,9 @@ import simulate_sprite_data as sprite_sim
 class sprite_obs():
 
 	def __init__(self, outname_df, outname_fits, detector_size=(2048,2048), 
-					save_ttag=True, overwrite=True):
+					new_exp=True, save_ttag=True, overwrite=False):
+
+		self.start_dt = dt.datetime.now()
 
 		self.outname_df = outname_df
 		self.outname_fits = outname_fits
@@ -23,10 +25,19 @@ class sprite_obs():
 		self.detector_size = detector_size
 		self.exptime = 0.0
 
+		print(overwrite, self.outname_df)
+
 		# build dataframe to store incoming photons
-		if overwrite: 
+		if new_exp: 
 			self.ttag_df = pd.DataFrame(columns=['x', 'y', 'p', 'dt'])
-			self.ttag_df.to_csv(self.outname_df, index=False)
+			
+			if overwrite:
+				self.outname_df = self.outname_df.split('.csv')[0]+'_TEST.csv'
+				self.ttag_df.to_csv(self.outname_df, index=False)
+			else:
+				start_dt_str = self.start_dt.strftime("%d%m%Y_%H%M%S")
+				self.outname_df = self.outname_df.split('.csv')[0]+'_'+start_dt_str+'.csv'
+				self.ttag_df.to_csv(self.outname_df, index=False)
 
 		self.image_frame = np.zeros(self.detector_size)
 		self.image_accum = np.zeros(self.detector_size)
@@ -41,7 +52,6 @@ class sprite_obs():
 		self.time_lis = [0]
 
 		#build photon rate counters
-		self.start_dt = dt.datetime.now()
 		self.delay_delta = 0
 		self.frame_rate = 0
 		self.frame_phot_rate = 0
