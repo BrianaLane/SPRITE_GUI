@@ -41,9 +41,11 @@
 
 ## Preview Exposure Tab:
 
-***This tab currently doesn't do anything and is a work in progress***
 1. All displayed widgets in this tab are in the Real_Time_Exposure Tab, however, this tab is for loading in the ttag csv file from a previous exposure. This tab provides a tool for displaying previous exposure data as a function of time. 
-2. In place of a *Start/Stop/Reset* button there is a *Select Data* button that allows you to choose a '.csv' file containing ttag data from a previous exposure and load it into this tab
+2. Press the 'Load Data' button to load in the data from the current exposure up to the time of pressing the button. 
+3. In place of a *Start/Stop/Reset* button there is a *Select Data* button that allows you to choose a '.csv' file containing ttag data from a previous exposure and load it into this tab
+4. The scale bar allows the user to view the data as a function of time 
+
 
 
 # SPRITE GUI Features In Progress
@@ -56,9 +58,3 @@
 2. Add widget in GUI to allow user to change data accumulation rate 
 3. Improve asthetics of the display
 4. Eventually build the functionality to aquire data from real time readout instead of a simulated data set. Placeholder function for this exists in sprite_exposure.py in the sprite_obs class with the acquire_data function. The sprite_GUI.py MainWindow class would require a one line update to read data from this function instead of the sprite_obs acquire_sim_data function is currently uses. 
-
-
-## Preview Exposure Tab:
-
-1. Get the data to display on on widgets when loaded
-2. add scroll feature to allow user to scroll through the time of the exposure (need to figure out how to handle non-continouous ttag file) and efficiently assume data taking rate from dt column. 
