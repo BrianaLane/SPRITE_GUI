@@ -181,12 +181,14 @@ class MainWindow(QtWidgets.QWidget):
         self.tabs = QtWidgets.QTabWidget()
         self.tab1 = QtWidgets.QWidget()
         self.tab2 = QtWidgets.QWidget()
-        #self.tabs.resize(300,200)
+        self.tab3 = QtWidgets.QWidget()
 
         self.tabs.addTab(self.tab1,"Real Time Exposure")
         self.tabs.addTab(self.tab2,"Preview Exposure")
+        self.tabs.addTab(self.tab3,"FTDI Parameters")
         self.tab1.grid = QtWidgets.QGridLayout(self)
         self.tab2.grid = QtWidgets.QGridLayout(self)
+        self.tab3.grid = QtWidgets.QGridLayout(self)
 
         #**************************#
         # first tab on main window #
@@ -354,6 +356,52 @@ class MainWindow(QtWidgets.QWidget):
 
         for c in range(9):
             self.tab2.grid.setColumnStretch(c,1)
+
+        #**************************#
+        # Third tab on main window #
+        #**************************#
+
+        # self.baudrate = 115200
+        # self.num_bits = 8
+        # self.stop_bits = 1 
+        # self.parity = 0 #None
+        # self.flowcontrol = 0
+
+        # self.ftdiOpen = False
+
+        # self.ftdicloseBtn = QtWidgets.QPushButton("Close FTDI")
+        # self.ftdicloseBtn.clicked.connect(self.close_ftdi)
+
+        # self.ftdiopenBtn = QtWidgets.QPushButton("Open FTDI")
+        # self.ftdiopenBtn.clicked.connect(self.open_ftdi)
+
+        # self.ftdistatBtn = QtWidgets.QPushButton("Queue Status")
+        # self.ftdistatBtn.clicked.connect(self.queue_ftdi)
+
+        # self.ftdiInfoBtn = QtWidgets.QPushButton("Get Device Info")
+        # self.ftdiInfoBtn.clicked.connect(self.get_ftdi_info)
+
+        # self.ftdipurgeBtn = QtWidgets.QPushButton("Purge FTDI Buffers")
+        # self.ftdipurgeBtn.clicked.connect(self.purge_ftdi)
+
+        # #baud rate selection box
+        # self.ftdi_br_box = QtWidgets.QComboBox()
+        # self.baudrate_options = [9600, 14400, 19200, 38400, 57600, 115200, 128000, 256000]
+        # self.ftdi_br_box.addItems([str(i) for i in self.baudrate_options])
+        # self.ftdi_br_box.activated[str].connect(self.select_BaudRate)
+
+        # self.ftdi_br_label = QtWidgets.QLabel('Baud Rate: '+str(self.baudrate))
+
+        # #add button widgets
+        # self.tab3.grid.addWidget(self.ftdiopenBtn,0,0,1,2)
+        # self.tab3.grid.addWidget(self.ftdicloseBtn,0,3,1,2)
+        # self.tab3.grid.addWidget(self.ftdiInfoBtn,0,6,1,2)
+
+        # self.tab3.grid.addWidget(self.ftdistatBtn,2,0,1,2)
+        # self.tab3.grid.addWidget(self.ftdipurgeBtn,3,0,1,2)
+
+        # self.tab3.grid.addWidget(self.ftdi_br_box,4,0,1,2)
+        # self.tab3.grid.addWidget(self.ftdi_br_label,4,3,1,2)
 
         #**********************#
         # build GUI and Timers #
@@ -565,8 +613,9 @@ class MainWindow(QtWidgets.QWidget):
 
 
     def load_current_data(self):
-        dat_filename = self.exp_obj.outname_df
-        self.initialize_data_preview(dat_filename)
+        if self.initialize_exposure:
+            dat_filename = self.exp_obj.outname_df
+            self.initialize_data_preview(dat_filename)
 
 
     def load_ttag_data(self):
@@ -630,6 +679,44 @@ class MainWindow(QtWidgets.QWidget):
     def change_pv_exptime(self, i):
         self.time_ind = i
         self.update_ttag_preview()
+        
+
+    # TAB 3 Functions
+
+   #  def open_ftdi(self):
+   #    self.d = ftd.open(0)
+   #    print('FTDI is Open')
+
+   #    info = self.d.getDeviceInfo()
+   #    print('Device:', info['description'])
+
+   #    self.d.setBaudRate(self.baudrate)
+   #    self.d.setDataCharacteristics(self.num_bits, self.stop_bits, self.parity)
+   #    self.d.setFlowControl(self.flowcontrol)
+
+   # def close_ftdi(self):
+   #    self.d.close()
+   #    print('FTDI is Closed')
+
+   #  def queue_ftdi(self):
+   #    buff_bytes = self.d.getQueueStatus()
+   #    self.datlabel.setText('Queue Status: '+ str(buff_bytes) + ' bytes')
+
+   # def purge_ftdi(self):
+   #    self.d.purge()
+   #    time.sleep(1)
+   #    self.d.purge()
+
+   #    b_bytes = self.d.getQueueStatus()
+   #    self.datlabel.setText('Purging Buffers 5 Times: '+ str(b_bytes) + ' bytes left')
+   #    print('FTDI Buffers Purged') 
+
+   # def select_BaudRate(self, i):
+   #    self.baudrate = int(i)
+   #    self.d.setBaudRate(self.baudrate)
+   #    time.sleep(1)
+   #    self.br_label.setText('Baud Rate: '+str(self.baudrate))
+   #    print('Baud Rate Changed to ', str(self.baudrate))
 
 
 #Build and run GUI when script is run
