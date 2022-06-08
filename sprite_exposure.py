@@ -180,7 +180,7 @@ class sprite_obs():
 		return x_ints, y_ints, p_ints, self.extra_read_bits
 
 
-	def aquire_data_fromFTDI(self, FTDI):
+	def aquire_ftdi_data(self, FTDI):
 
 		byte_length = FTDI.getQueueStatus()
 		byte_list = FTDI.read(byte_length)

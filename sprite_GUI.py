@@ -177,6 +177,29 @@ class MainWindow(QtWidgets.QWidget):
 
         self.pv_dat_filename = 'PV'
 
+        # set default FTDI parameters
+        self.baudrate = 115200
+        self.num_bits = 8
+        self.stop_bits = 1 
+        self.parity = 0 #None
+        self.flowcontrol = 0
+
+        self.FTDI_open = False
+        self.FTDI_info = ''
+        self.open_ftdi()
+
+        if self.FTDI_open:
+            self.DATA_MODE = 'ftdi'
+        else:
+            self.DATA_MODE = 'sim'
+
+        self.mode_params = {'sim': {'title':'SIMULATION MODE', 
+                                    'color': '#e0773f',
+                                    't3_mess': 'No FTDI Connection Found'},
+                            'ftdi':{'title': 'CONNECTED TO FTDI: '+self.FTDI_info, 
+                                    'color': '#50C66F',
+                                    't3_mess': 'CONNECTED TO FTDI: '+self.FTDI_info}}
+
         self.grid = QtWidgets.QGridLayout(self)
 
         #build window tabs
@@ -196,7 +219,11 @@ class MainWindow(QtWidgets.QWidget):
         # first tab on main window #
         #**************************#
 
-        #build labels
+        self.mode_label = QtWidgets.QLabel(self.mode_params[self.DATA_MODE]['title'])
+        title_col = self.mode_params[self.DATA_MODE]['color']
+        self.mode_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.mode_label.setStyleSheet('font-size: 40; font-weight: bold; border: 5px solid black; background-color: '+title_col) 
+
         self.exptime_label = QtWidgets.QLabel('Elapsed Time: '+str(self.elapsed_time)+' Seconds')
         self.frame_ct_label = QtWidgets.QLabel('Photons per Second: '+str(0.0) 
                                                 + '\n' + 'Median Photons per Second: ' + str(0.0))
@@ -263,7 +290,8 @@ class MainWindow(QtWidgets.QWidget):
         self.tab1.grid.addWidget(self.accum_slide_t1,5,4,1,2)
 
         #add label widgets
-        self.tab1.grid.addWidget(self.exptime_label,0,6,1,3)
+        self.tab1.grid.addWidget(self.mode_label,0,6,1,3)
+        self.tab1.grid.addWidget(self.exptime_label,1,6,1,3)
         self.tab1.grid.addWidget(self.frame_ct_label,7,0,1,3)
         self.tab1.grid.addWidget(self.accum_ct_label,7,3,1,3)
 
@@ -369,7 +397,10 @@ class MainWindow(QtWidgets.QWidget):
         self.parity = 0 #None
         self.flowcontrol = 0
 
-        self.ftdiOpen = False
+        self.ftdi_status = QtWidgets.QLabel(self.mode_params[self.DATA_MODE]['t3_mess'])
+        #self.ftdi_connect_stat.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.ftdi_status.setAlignment(QtCore.Qt.AlignCenter)
+        self.ftdi_status.setStyleSheet('font-size: 40; font-weight: bold; border: 5px solid black; background-color: '+title_col) 
 
         self.ftdicloseBtn = QtWidgets.QPushButton("Close FTDI")
         self.ftdicloseBtn.clicked.connect(self.close_ftdi)
@@ -379,9 +410,6 @@ class MainWindow(QtWidgets.QWidget):
 
         self.ftdistatBtn = QtWidgets.QPushButton("Queue Status")
         self.ftdistatBtn.clicked.connect(self.queue_ftdi)
-
-        self.ftdiInfoBtn = QtWidgets.QPushButton("Get Device Info")
-        self.ftdiInfoBtn.clicked.connect(self.get_ftdi_info)
 
         self.ftdipurgeBtn = QtWidgets.QPushButton("Purge FTDI Buffers")
         self.ftdipurgeBtn.clicked.connect(self.purge_ftdi)
@@ -395,15 +423,23 @@ class MainWindow(QtWidgets.QWidget):
         self.ftdi_br_label = QtWidgets.QLabel('Baud Rate: '+str(self.baudrate))
 
         #add button widgets
-        self.tab3.grid.addWidget(self.ftdiopenBtn,0,0,1,2)
-        self.tab3.grid.addWidget(self.ftdicloseBtn,0,3,1,2)
-        self.tab3.grid.addWidget(self.ftdiInfoBtn,0,6,1,2)
+        self.tab3.grid.addWidget(self.ftdi_status,0,1,1,6)
 
-        self.tab3.grid.addWidget(self.ftdistatBtn,2,0,1,2)
+        self.tab3.grid.addWidget(self.ftdiopenBtn,1,0,1,2)
+        self.tab3.grid.addWidget(self.ftdicloseBtn,1,3,1,2)
+
+        self.tab3.grid.addWidget(self.ftdistatBtn,2,3,1,2)
+
         self.tab3.grid.addWidget(self.ftdipurgeBtn,3,0,1,2)
 
         self.tab3.grid.addWidget(self.ftdi_br_box,4,0,1,2)
         self.tab3.grid.addWidget(self.ftdi_br_label,4,3,1,2)
+
+        for c in range(7):
+            self.tab3.grid.setColumnStretch(c,1)
+
+        for r in range(5):
+            self.tab3.grid.setRowStretch(r,1)
 
         #**********************#
         # build GUI and Timers #
@@ -480,10 +516,10 @@ class MainWindow(QtWidgets.QWidget):
                 #count the elapsed time
                 self.elapsed_time += self.readout_rate
 
-                #JACK LOOK HERE!!!!!
-                #change this from aquire_sim_data to aquire_data function in sprite_obs object which is called self.exp_obj
-                #you also need to update parameters to aquire_data parameters
-                dat_df = self.exp_obj.aquire_sim_data(sim_df_name='example_simulated_gauss_ttag.csv', photon_rate=10000)
+                if self.DATA_MODE == 'sim':
+                    dat_df = self.exp_obj.aquire_sim_data(sim_df_name='example_simulated_gauss_ttag.csv', photon_rate=10000)
+                elif self.DATA_MODE == 'ftdi':
+                    dat_df = self.exp_obj.aquire_ftdi_data(FTDI=self.FTDI)
 
                 self.elap_time_lis.append(self.elapsed_time)
 
@@ -502,7 +538,7 @@ class MainWindow(QtWidgets.QWidget):
     def startExposure(self):
 
         if not self.initialize_exposure:
-            # build SPRITE exposure object #
+            # build SPRITE exposure object 
             self.exp_obj = sprite_exp.sprite_obs(outname_df=self.outname_base_df, outname_fits=self.outname_fits,
                                              detector_size=self.detector_size, new_exp=True, 
                                              save_ttag=self.ttag_save_ch.isChecked(), 
@@ -687,43 +723,46 @@ class MainWindow(QtWidgets.QWidget):
     # TAB 3 Functions
 
     def open_ftdi(self):
-        self.d = ftd.open(0)
-        print('FTDI is Open')
+        try:
+            self.FTDI = ftd.open(0)
+            self.FTDI_open = True
+        except NameError:
+            self.FTDI_open = False
+            print('NO FTDI Device Found')
+            print('GUI in SIMULATE MODE')
 
-        info = self.d.getDeviceInfo()
-        print('Device:', info['description'])
+        if self.FTDI_open:
+            self.FTDIinfo = self.d.getDeviceInfo()
 
-        self.d.setBaudRate(self.baudrate)
-        self.d.setDataCharacteristics(self.num_bits, self.stop_bits, self.parity)
-        self.d.setFlowControl(self.flowcontrol)
+            self.FTDI.setBaudRate(self.baudrate)
+            self.FTDI.setDataCharacteristics(self.num_bits, self.stop_bits, self.parity)
+            self.FTDI.setFlowControl(self.flowcontrol)
 
     def close_ftdi(self):
-        self.d.close()
-        print('FTDI is Closed')
-
-    def get_ftdi_info(self):
-        info = self.d.getDeviceInfo()
-        print('Device:', info['description'])
+        if self.FTDI_open:
+            self.FTDI.close()
+        self.FTDI_open = False
 
     def queue_ftdi(self):
-        buff_bytes = self.d.getQueueStatus()
-        self.datlabel.setText('Queue Status: '+ str(buff_bytes) + ' bytes')
+        if self.FTDI_open:
+            buff_bytes = self.FTDI.getQueueStatus()
+            self.datlabel.setText('Queue Status: '+ str(buff_bytes) + ' bytes')
 
     def purge_ftdi(self):
-        self.d.purge()
-        time.sleep(1)
-        self.d.purge()
+        if self.FTDI_open:
+            self.FTDI.purge()
+            time.sleep(1)
+            self.FTDI.purge()
 
-        b_bytes = self.d.getQueueStatus()
-        self.datlabel.setText('Purging Buffers 5 Times: '+ str(b_bytes) + ' bytes left')
-        print('FTDI Buffers Purged') 
+            b_bytes = self.FTDI.getQueueStatus()
+            self.datlabel.setText('Purging Buffers 5 Times: '+ str(b_bytes) + ' bytes left')
 
     def select_BaudRate(self, i):
         self.baudrate = int(i)
-        self.d.setBaudRate(self.baudrate)
-        time.sleep(1)
-        self.br_label.setText('Baud Rate: '+str(self.baudrate))
-        print('Baud Rate Changed to ', str(self.baudrate))
+        if self.FTDI_open:
+            self.FTDI.setBaudRate(self.baudrate)
+            time.sleep(1)
+        self.ftdi_br_label.setText('Baud Rate: '+str(self.baudrate))
 
 
 #Build and run GUI when script is run
