@@ -186,19 +186,25 @@ class MainWindow(QtWidgets.QWidget):
 
         self.FTDI_open = False
         self.FTDI_info = ''
+        self.FIFO_bytes = 'NO CONNECTION'
+        self.ftdi_status = QtWidgets.QLabel('')
         self.open_ftdi()
-
+        
         if self.FTDI_open:
             self.DATA_MODE = 'ftdi'
         else:
             self.DATA_MODE = 'sim'
 
         self.mode_params = {'sim': {'title':'SIMULATION MODE', 
-                                    'color': '#e0773f',
-                                    't3_mess': 'No FTDI Connection Found'},
+                                    'color': '#DC7B66',
+                                    't3_mess': 'No FTDI Connection Found',
+                                    'btn':'FTDI Readout MODE',
+                                    'stat': 'SIMULATION MODE'},
                             'ftdi':{'title': 'CONNECTED TO FTDI: '+self.FTDI_info, 
                                     'color': '#50C66F',
-                                    't3_mess': 'CONNECTED TO FTDI: '+self.FTDI_info}}
+                                    't3_mess': 'CONNECTED TO FTDI: '+self.FTDI_info,
+                                    'btn': 'SIMULATION MODE',
+                                    'stat': 'FTDI Readout MODE'}}
 
         self.grid = QtWidgets.QGridLayout(self)
 
@@ -222,7 +228,7 @@ class MainWindow(QtWidgets.QWidget):
         self.mode_label = QtWidgets.QLabel(self.mode_params[self.DATA_MODE]['title'])
         title_col = self.mode_params[self.DATA_MODE]['color']
         self.mode_label.setAlignment(QtCore.Qt.AlignCenter)
-        self.mode_label.setStyleSheet('font-size: 40; font-weight: bold; border: 5px solid black; background-color: '+title_col) 
+        self.mode_label.setStyleSheet('font-size: 40; font-weight: bold; border: 5px ridge #545353; background-color: '+title_col) 
 
         self.exptime_label = QtWidgets.QLabel('Elapsed Time: '+str(self.elapsed_time)+' Seconds')
         self.frame_ct_label = QtWidgets.QLabel('Photons per Second: '+str(0.0) 
@@ -391,17 +397,23 @@ class MainWindow(QtWidgets.QWidget):
         # Third tab on main window #
         #**************************#
 
-        self.baudrate = 115200
-        self.num_bits = 8
-        self.stop_bits = 1 
-        self.parity = 0 #None
-        self.flowcontrol = 0
+        # Data Mode status bar
+        self.mode_status = QtWidgets.QLabel('Data Mode: '+'\n'+self.mode_params[self.DATA_MODE]['stat'])
+        #self.mode_status.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Maximum)
+        self.mode_status.setAlignment(QtCore.Qt.AlignCenter)
+        self.mode_status.setStyleSheet('font-size: 50px; font-weight: bold; border: 5px ridge #545353; background-color: '+title_col) 
 
-        self.ftdi_status = QtWidgets.QLabel(self.mode_params[self.DATA_MODE]['t3_mess'])
-        #self.ftdi_connect_stat.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        # FTDI status bar
+        self.ftdi_status.setText(self.mode_params[self.DATA_MODE]['t3_mess'])
+        #self.ftdi_status.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Maximum)
         self.ftdi_status.setAlignment(QtCore.Qt.AlignCenter)
-        self.ftdi_status.setStyleSheet('font-size: 40; font-weight: bold; border: 5px solid black; background-color: '+title_col) 
+        self.ftdi_status.setStyleSheet('font-size: 50px; font-weight: bold; border: 5px ridge #545353; background-color: '+title_col) 
 
+        # Data Mode buttons
+        self.datamodeBtn = QtWidgets.QPushButton("Switch to "+self.mode_params[self.DATA_MODE]['btn'])
+        self.datamodeBtn.clicked.connect(self.switch_data_mode)
+
+        # FTDI buttons
         self.ftdicloseBtn = QtWidgets.QPushButton("Close FTDI")
         self.ftdicloseBtn.clicked.connect(self.close_ftdi)
 
@@ -420,26 +432,34 @@ class MainWindow(QtWidgets.QWidget):
         self.ftdi_br_box.addItems([str(i) for i in self.baudrate_options])
         self.ftdi_br_box.activated[str].connect(self.select_BaudRate)
 
+        # FTDI command labels
         self.ftdi_br_label = QtWidgets.QLabel('Baud Rate: '+str(self.baudrate))
+        self.ftdi_qu_label = QtWidgets.QLabel('FTDI Queue Bytes: '+str(self.FIFO_bytes))
+        self.ftdi_pr_label = QtWidgets.QLabel('')
 
-        #add button widgets
-        self.tab3.grid.addWidget(self.ftdi_status,0,1,1,6)
+        #add FTDI widgets
+        self.tab3.grid.addWidget(self.mode_status,0,0,1,3)
+        self.tab3.grid.addWidget(self.ftdi_status,0,3,1,3)
 
-        self.tab3.grid.addWidget(self.ftdiopenBtn,1,0,1,2)
-        self.tab3.grid.addWidget(self.ftdicloseBtn,1,3,1,2)
+        self.tab3.grid.addWidget(self.datamodeBtn,1,1,1,4)
 
-        self.tab3.grid.addWidget(self.ftdistatBtn,2,3,1,2)
+        self.tab3.grid.addWidget(self.ftdiopenBtn,2,0,1,3)
+        self.tab3.grid.addWidget(self.ftdicloseBtn,2,3,1,3)
 
-        self.tab3.grid.addWidget(self.ftdipurgeBtn,3,0,1,2)
+        self.tab3.grid.addWidget(self.ftdistatBtn,3,0,1,3)
+        self.tab3.grid.addWidget(self.ftdi_qu_label,3,3,1,3)
 
-        self.tab3.grid.addWidget(self.ftdi_br_box,4,0,1,2)
-        self.tab3.grid.addWidget(self.ftdi_br_label,4,3,1,2)
+        self.tab3.grid.addWidget(self.ftdipurgeBtn,4,0,1,3)
+        self.tab3.grid.addWidget(self.ftdi_pr_label,4,3,1,3)
 
-        for c in range(7):
-            self.tab3.grid.setColumnStretch(c,1)
+        self.tab3.grid.addWidget(self.ftdi_br_box,5,0,1,3)
+        self.tab3.grid.addWidget(self.ftdi_br_label,5,3,1,2)
 
-        for r in range(5):
-            self.tab3.grid.setRowStretch(r,1)
+        # for c in range(5):
+        #     self.tab3.grid.setColumnStretch(c,1)
+
+        # for r in range(5):
+        #    self.tab3.grid.setRowStretch(r,1)
 
         #**********************#
         # build GUI and Timers #
@@ -547,6 +567,13 @@ class MainWindow(QtWidgets.QWidget):
             self.exp_obj.frame_rate = self.readout_rate
             self.initialize_exposure = True
 
+            # disable the FTDI buttons when exposing 
+            self.ftdiopenBtn.setEnabled(False)
+            self.ftdicloseBtn.setEnabled(False)
+            self.ftdipurgeBtn.setEnabled(False)
+            self.ftdistatBtn.setEnabled(False)
+            self.ftdi_br_box.setEnabled(False)
+
             self.ttag_overwrite_ch.setCheckable(False)
             self.ttag_overwrite_ch.setStyleSheet("QCheckBox::indicator:hover {border: 2px solid #8a8a8a;}")
 
@@ -605,12 +632,20 @@ class MainWindow(QtWidgets.QWidget):
         # flush the GUI events
         self.canvas_frame.flush_events() 
 
+        # enable overwrite option
         self.initialize_exposure = False
         self.ttag_overwrite_ch.setCheckable(True)
         self.ttag_overwrite_ch.setChecked(False)
         self.overwrite = False 
         self.ttag_overwrite_ch.setStyleSheet("color: white")
         self.ttag_overwrite_ch.setStyleSheet("QCheckBox::indicator:hover {border: 2px solid #9fd3c7;}")
+
+        # enable the FTDI buttons  
+        self.ftdiopenBtn.setEnabled(True)
+        self.ftdicloseBtn.setEnabled(True)
+        self.ftdipurgeBtn.setEnabled(True)
+        self.ftdistatBtn.setEnabled(True)
+        self.ftdi_br_box.setEnabled(True)
 
     #TAB 2 Functions
 
@@ -722,17 +757,43 @@ class MainWindow(QtWidgets.QWidget):
 
     # TAB 3 Functions
 
+    def switch_data_mode(self):
+        if self.DATA_MODE == 'ftdi':
+            self.DATA_MODE = 'sim'
+            self.close_ftdi()
+
+        elif self.DATA_MODE == 'sim':
+            self.open_ftdi()
+
+            if self.FTDI_open:
+                self.DATA_MODE == 'ftdi'
+
+        bkg_color = self.mode_params[self.DATA_MODE]['color']
+
+        self.mode_status.setText('Data Mode: '+'\n'+self.mode_params[self.DATA_MODE]['stat'])
+        self.mode_status.setStyleSheet('font-size: 50px; font-weight: bold; border: 5px ridge #545353; background-color: '+bkg_color) 
+
+        self.mode_label.setText(self.mode_params[self.DATA_MODE]['title'])
+        self.mode_label.setStyleSheet('font-size: 40; font-weight: bold; border: 5px ridge #545353; background-color: '+bkg_color) 
+
+        self.datamodeBtn.setText("Switch to "+self.mode_params[self.DATA_MODE]['btn'])
+
     def open_ftdi(self):
         try:
             self.FTDI = ftd.open(0)
             self.FTDI_open = True
+            self.FTDIinfo = self.FTDI.getDeviceInfo()
+            self.ftdi_status.setText('CONNECTED TO FTDI: '+self.FTDI_info)
+            self.ftdi_status.setStyleSheet('font-size: 50px; font-weight: bold; border: 5px ridge #545353; background-color: #50C66F') 
         except NameError:
             self.FTDI_open = False
+            self.ftdi_status.setText('No FTDI Connection Found')
+            self.ftdi_status.setStyleSheet('font-size: 50px; font-weight: bold; border: 5px ridge #545353; background-color: #DC7B66') 
             print('NO FTDI Device Found')
             print('GUI in SIMULATE MODE')
 
         if self.FTDI_open:
-            self.FTDIinfo = self.d.getDeviceInfo()
+            self.FIFO_bytes = self.FTDI.getQueueStatus()
 
             self.FTDI.setBaudRate(self.baudrate)
             self.FTDI.setDataCharacteristics(self.num_bits, self.stop_bits, self.parity)
@@ -741,21 +802,40 @@ class MainWindow(QtWidgets.QWidget):
     def close_ftdi(self):
         if self.FTDI_open:
             self.FTDI.close()
+            self.ftdi_status.set_text('FTDI Closed')
+
+            if self.DATA_MODE == 'ftdi':
+                self.DATA_MODE = 'sim'
+
+                bkg_color = self.mode_params[self.DATA_MODE]['color']
+
+                self.mode_status.setText('Data Mode: '+'\n'+self.mode_params[self.DATA_MODE]['stat'])
+                self.mode_status.setStyleSheet('font-size: 50px; font-weight: bold; border: 5px ridge #545353; background-color: '+bkg_color) 
+
+                self.mode_label.setText(self.mode_params[self.DATA_MODE]['title'])
+                self.mode_label.setStyleSheet('font-size: 40; font-weight: bold; border: 5px ridge #545353; background-color: '+bkg_color) 
+
+                self.datamodeBtn.setText("Switch to "+self.mode_params[self.DATA_MODE]['btn'])
+        
         self.FTDI_open = False
 
     def queue_ftdi(self):
         if self.FTDI_open:
-            buff_bytes = self.FTDI.getQueueStatus()
-            self.datlabel.setText('Queue Status: '+ str(buff_bytes) + ' bytes')
+            self.FIFO_bytes = self.FTDI.getQueueStatus()
+            self.ftdi_qu_label.setText('FTDI Queue Bytes: '+str(self.FIFO_bytes))
+        else:
+            self.FIFO_bytes = 'NO CONNECTION'
+            self.ftdi_qu_label.setText('FTDI Queue Bytes: '+str(self.FIFO_bytes))
 
     def purge_ftdi(self):
         if self.FTDI_open:
-            self.FTDI.purge()
-            time.sleep(1)
-            self.FTDI.purge()
+            for i in range(5):
+                self.FTDI.purge()
+                self.FIFO_bytes = self.FTDI.getQueueStatus()
+                self.ftdi_pr_label.setText('Purging Buffers'+str(i+1)+'X; '+str(self.FIFO_bytes)+' bytes remaining')
+                time.sleep(1)
 
-            b_bytes = self.FTDI.getQueueStatus()
-            self.datlabel.setText('Purging Buffers 5 Times: '+ str(b_bytes) + ' bytes left')
+            self.ftdi_pr_label.setText('')
 
     def select_BaudRate(self, i):
         self.baudrate = int(i)
