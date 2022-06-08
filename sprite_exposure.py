@@ -5,7 +5,7 @@ import time
 import random
 from astropy.io import fits
 
-#import ftd2xx as ftd
+import ftd2xx as ftd
 
 from matplotlib import pyplot as plt
 import simulate_sprite_data as sprite_sim

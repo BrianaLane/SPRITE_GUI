@@ -28,7 +28,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from astropy.visualization import (MinMaxInterval, SqrtStretch,
                                    ImageNormalize)
 
-#import ftd2xx as ftd
+import ftd2xx as ftd
 
 import simulate_sprite_data as sprite_sim
 import sprite_exposure as sprite_exp
